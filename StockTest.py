@@ -4,9 +4,12 @@ from PyQt5 import QtCore,QtWidgets
 from  matplotlib import pyplot as plt
 import sys
 
-class MainWin(QtWidgets.QWidget):
-    def __init__(self):
+class DataSourceGroup(QtWidgets.QGroupBox):
+    def __init__(self,parent):
         super().__init__()
+
+        self.MainWin = parent
+        self.setTitle("資料設定")
 
         self.TickerLabel = QtWidgets.QLabel(parent = self,text = "代碼:")
         self.TickerBox = QtWidgets.QComboBox(self)
@@ -108,7 +111,65 @@ class MainWin(QtWidgets.QWidget):
         
         Message = "這段期間裡你賺了 %d元, 其中包含了 %d次 的買進 和 %d次的 賣出"%(Cash, BuyCount, SellCount)
         QtWidgets.QMessageBox.information(None,"Result",Message)
-             
+
+class MetricGroup(QtWidgets.QGroupBox):
+    def __init__(self,parent):
+        super().__init__()
+
+        self.MainWin = parent
+        self.setTitle("技術線型")
+
+        self.RawCB = QtWidgets.QCheckBox(self)
+        self.RawCB.setText("完整資料")
+
+        self.DayLineCB = QtWidgets.QCheckBox(self)
+        self.DayLineCB.setText("日線")             
+
+        self.Avg5CB = QtWidgets.QCheckBox(self)
+        self.Avg5CB.setText("5日平均線")
+
+        self.Avg10CB = QtWidgets.QCheckBox(self)
+        self.Avg10CB.setText("10日平均線")
+
+        self.AvgMonCB = QtWidgets.QCheckBox(self)
+        self.AvgMonCB.setText("月平均線")
+
+        self.RSI5CB = QtWidgets.QCheckBox(self)
+        self.RSI5CB.setText("5日RSI")
+
+        self.RSI10CB = QtWidgets.QCheckBox(self)
+        self.RSI10CB.setText("10日RSI")
+
+        self.PlotButton = QtWidgets.QPushButton(self)
+        self.PlotButton.setText("觀察技術線")
+        self.PlotButton.clicked.connect(self.plotCurves)
+
+        self.Layout = QtWidgets.QGridLayout(self)
+        self.Layout.addWidget(self.RawCB,0,0,1,2)
+        self.Layout.addWidget(self.DayLineCB,0,2,1,2)
+        self.Layout.addWidget(self.Avg5CB,1,0,1,2)
+        self.Layout.addWidget(self.Avg10CB,1,2,1,2)
+        self.Layout.addWidget(self.AvgMonCB,2,0,1,2)
+        self.Layout.addWidget(self.RSI5CB,3,0,1,2)
+        self.Layout.addWidget(self.RSI10CB,3,2,1,2)
+        self.Layout.addWidget(self.PlotButton,4,1,1,2)
+
+        self.setLayout(self.Layout)
+
+    def plotCurves(self):
+        pass
+
+class MainWin(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.DataSource = DataSourceGroup(self)
+        self.Metric = MetricGroup(self)
+
+        self.Layout = QtWidgets.QGridLayout()
+        self.Layout.addWidget(self.DataSource,0,0,2,2)
+        self.Layout.addWidget(self.Metric,2,0,2,2)
+        self.setLayout(self.Layout)
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
