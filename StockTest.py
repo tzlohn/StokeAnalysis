@@ -80,6 +80,7 @@ class DataSourceGroup(QtWidgets.QGroupBox):
         self.Unit = self.transferUnit()
         self.Period = str(self.DigitBox.value()) + self.Unit
         self.Data = self.Ticket.history(period = self.Period)
+
     
     def resetPeriod(self):
         self.Unit = self.transferUnit()
@@ -91,8 +92,11 @@ class DataSourceGroup(QtWidgets.QGroupBox):
         self.StartDate.setText(str(self.Data.index.date[0]))
         self.EndDate.setText(str(self.Data.index.date[-1]))
 
-    def getData(self):
+    def updateTicket(self):
         self.PeriodData = self.Data.loc[self.StartDate.text():self.EndDate.text()]
+
+    def getData(self):
+        self.updateTicket()        
         High = self.PeriodData["High"]
         Low = self.PeriodData["Low"]
         Close = self.PeriodData["Close"]
@@ -125,20 +129,34 @@ class MetricGroup(QtWidgets.QGroupBox):
         self.DayLineCB = QtWidgets.QCheckBox(self)
         self.DayLineCB.setText("日線")             
 
-        self.Avg5CB = QtWidgets.QCheckBox(self)
-        self.Avg5CB.setText("5日平均線")
+        self.AvgCB = QtWidgets.QCheckBox(self)
+        self.AvgCB.setText("平均線")
+        self.AvgCB.clicked.connect(self.checkAvgBox)
 
-        self.Avg10CB = QtWidgets.QCheckBox(self)
-        self.Avg10CB.setText("10日平均線")
+        self.AvgDaysBox = QtWidgets.QSpinBox(self)
+        self.AvgDaysBox.setMinimum(3)
+        self.AvgDaysBox.setMaximum(20)
+        self.AvgDaysBox.setValue(10)
+        self.AvgDaysBox.setDisabled(True)
+
+        self.AvgDaysText = QtWidgets.QLabel(parent = self)
+        self.AvgDaysText.setText("天平均")
 
         self.AvgMonCB = QtWidgets.QCheckBox(self)
         self.AvgMonCB.setText("月平均線")
 
-        self.RSI5CB = QtWidgets.QCheckBox(self)
-        self.RSI5CB.setText("5日RSI")
+        self.RSICB = QtWidgets.QCheckBox(self)
+        self.RSICB.setText("RSI")
+        self.RSICB.clicked.connect(self.checkRSIBox)
 
-        self.RSI10CB = QtWidgets.QCheckBox(self)
-        self.RSI10CB.setText("10日RSI")
+        self.RSIDaysBox = QtWidgets.QSpinBox(self)
+        self.RSIDaysBox.setMinimum(3)
+        self.RSIDaysBox.setMaximum(20)
+        self.RSIDaysBox.setValue(10)
+        self.RSIDaysBox.setDisabled(True)
+
+        self.RSIDaysText = QtWidgets.QLabel(parent = self)
+        self.RSIDaysText.setText("天RSI")
 
         self.PlotButton = QtWidgets.QPushButton(self)
         self.PlotButton.setText("觀察技術線")
@@ -147,21 +165,59 @@ class MetricGroup(QtWidgets.QGroupBox):
         self.Layout = QtWidgets.QGridLayout(self)
         self.Layout.addWidget(self.RawCB,0,0,1,2)
         self.Layout.addWidget(self.DayLineCB,0,2,1,2)
-        self.Layout.addWidget(self.Avg5CB,1,0,1,2)
-        self.Layout.addWidget(self.Avg10CB,1,2,1,2)
+        self.Layout.addWidget(self.AvgCB,1,0,1,2)
+        self.Layout.addWidget(self.AvgDaysBox,1,2,1,1)
+        self.Layout.addWidget(self.AvgDaysText,1,3,1,1)
         self.Layout.addWidget(self.AvgMonCB,2,0,1,2)
-        self.Layout.addWidget(self.RSI5CB,3,0,1,2)
-        self.Layout.addWidget(self.RSI10CB,3,2,1,2)
+        self.Layout.addWidget(self.RSICB,3,0,1,2)
+        self.Layout.addWidget(self.RSIDaysBox,3,2,1,1)
+        self.Layout.addWidget(self.RSIDaysText,3,3,1,1)
         self.Layout.addWidget(self.PlotButton,4,1,1,2)
 
         self.setLayout(self.Layout)
 
     def plotCurves(self):
-        pass
+        RawData = self.MainWin.DataSource.PeriodData["Close"]
+        
+        if self.AvgDaysBox.isEnabled():
+            self.calculateMetric(type = "DayAvg",Data = RawData.values)
+            
+        plt.plot(RawData.values)
+        plt.plot(self.RollingAvg)
+        plt.show()
+    
+    def calculateMetric(self,type,Data):
+        if type  == "DayAvg":
+            AvgDays = self.AvgDaysBox.value()
+            Kernel = self.createKernel(type = "DayAvg",AvgDay = AvgDays,Length = len(Data))
+            self.RollingAvg = np.dot(Data,Kernel)/AvgDays
+            self.RollingAvg = np.concatenate((np.asarray([0]*AvgDays),self.RollingAvg))
+
+    def createKernel(self,type,AvgDay,Length):
+        if type == "DayAvg":         
+            Kernel = np.zeros(shape = (Length,Length-AvgDay))
+            for n in range(Length-AvgDay):
+                Kernel[n:n+AvgDay,n] = 1
+            print(Kernel)
+            return Kernel
+
+    def checkAvgBox(self):
+        if self.AvgDaysBox.isEnabled():
+            self.AvgDaysBox.setDisabled(True)
+        else:
+            self.AvgDaysBox.setEnabled(True)
+    
+    def checkRSIBox(self):
+        if self.RSIDaysBox.isEnabled():
+            self.RSIDaysBox.setDisabled(True)
+        else:
+            self.RSIDaysBox.setEnabled(True)
 
 class MainWin(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
+
+        self.setWindowTitle("王家肉燥飯")
 
         self.DataSource = DataSourceGroup(self)
         self.Metric = MetricGroup(self)
