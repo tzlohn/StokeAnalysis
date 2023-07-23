@@ -243,7 +243,7 @@ class MetricGroup(QtWidgets.QGroupBox):
         if self.AvgDaysBox.isEnabled():
             self.calculateMetric(type = "DayAvg",Data = RawData.values)
 
-        self.CrossHairPlot.plotBar(PackedRaw,Date)
+        self.CrossHairPlot.plotBoxChart(PackedRaw,Date)
         self.CrossHairPlot.plot(self.RollingAvg,np.arange(self.RollingAvg.shape[0]))
         """    
         plt.plot(RawData.values)
