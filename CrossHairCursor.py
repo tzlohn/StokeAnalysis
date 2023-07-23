@@ -9,19 +9,16 @@ import random
 class CrosshairPlotWidget(QtWidgets.QWidget):
     """Scrolling plot with crosshair"""
 
-    def __init__(self, parent=None):
-        super(CrosshairPlotWidget, self).__init__(parent)
+    def __init__(self,data = None,x_axis=None, parent=None):
+        super().__init__()
 
         # Use for time.sleep (s)
         self.FREQUENCY = 25
         # Use for timer.timer (ms)
         self.TIMER_FREQUENCY = self.FREQUENCY * 1000
 
-        self.LEFT_X = -10
-        self.RIGHT_X = 0
-        self.x_axis = np.arange(self.LEFT_X, self.RIGHT_X, self.FREQUENCY)
-        self.buffer = int((abs(self.LEFT_X) + abs(self.RIGHT_X))/self.FREQUENCY)
-        self.data = []
+        self.LEFT_X = 0
+        self.RIGHT_X = 100
 
         self.crosshair_plot_widget = pg.PlotWidget()
         self.crosshair_plot_widget.setXRange(self.LEFT_X, self.RIGHT_X)
@@ -29,7 +26,7 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
         self.crosshair_plot_widget.setLabel('bottom', 'Time (s)')
         self.crosshair_color = (196,220,255)
 
-        self.crosshair_plot = self.crosshair_plot_widget.plot()
+        #self.crosshair_plot = self.crosshair_plot_widget.plot()
 
         self.layout = QtWidgets.QGridLayout()
         self.layout.addWidget(self.crosshair_plot_widget)
@@ -45,39 +42,20 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
 
         self.crosshair_update = pg.SignalProxy(self.crosshair_plot_widget.scene().sigMouseMoved, rateLimit=60, slot=self.update_crosshair)
 
-        self.start()
-
-    def plot_updater(self):
-        """Updates data buffer with data value"""
-
-        self.data_point = random.randint(1,101)
-        if len(self.data) >= self.buffer:
-            del self.data[:1]
-        self.data.append(float(self.data_point))
-        self.crosshair_plot.setData(self.x_axis[len(self.x_axis) - len(self.data):], self.data)
-
     def update_crosshair(self, event):
         """Paint crosshair on mouse"""
 
         coordinates = event[0]  
         if self.crosshair_plot_widget.sceneBoundingRect().contains(coordinates):
             mouse_point = self.crosshair_plot_widget.plotItem.vb.mapSceneToView(coordinates)
-            index = mouse_point.x()
-            if index > self.LEFT_X and index <= self.RIGHT_X:
-                self.crosshair_plot_widget.setTitle("<span style='font-size: 12pt'>x=%0.1f,   <span style='color: red'>y=%0.1f</span>" % (mouse_point.x(), mouse_point.y()))
+            self.crosshair_plot_widget.setTitle("<span style='font-size: 12pt'>x=%0.1f,   <span style='color: red'>y=%0.1f</span>" % (mouse_point.x(), mouse_point.y()))
             self.vertical_line.setPos(mouse_point.x())
             self.horizontal_line.setPos(mouse_point.y())
 
-    def start(self):
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.plot_updater)
-        self.timer.start(self.get_timer_frequency())
-
-    def get_crosshair_plot_layout(self):
-        return self.layout
-
-    def get_timer_frequency(self):
-        return self.TIMER_FREQUENCY
+    def plot(self,data,x_axis):
+        self.crosshair_plot_widget.show()
+        self.crosshair_plot_widget.plotItem.plot(x_axis,data)
+        
 
 if __name__ == '__main__':
     # Create main application window
@@ -95,8 +73,6 @@ if __name__ == '__main__':
 
     # Create crosshair plot
     crosshair_plot = CrosshairPlotWidget()
-
-    ml.addLayout(crosshair_plot.get_crosshair_plot_layout(),0,0)
 
     mw.show()
 

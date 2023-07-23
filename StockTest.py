@@ -3,6 +3,7 @@ import numpy as np
 from PyQt5 import QtCore,QtWidgets,QtGui
 from  matplotlib import pyplot as plt
 import sys
+import CrossHairCursor as CHC
 
 class DataSourceGroup(QtWidgets.QGroupBox):
     def __init__(self,parent):
@@ -231,17 +232,21 @@ class MetricGroup(QtWidgets.QGroupBox):
         self.Layout.addWidget(self.PlotButton,4,1,1,2)
 
         self.setLayout(self.Layout)
+        self.CrossHairPlot = CHC.CrosshairPlotWidget(parent = self)
 
     def plotCurves(self):
         RawData = self.MainWin.DataSource.PeriodData["Close"]
         
         if self.AvgDaysBox.isEnabled():
             self.calculateMetric(type = "DayAvg",Data = RawData.values)
-            
+
+        self.CrossHairPlot.plot(RawData.values,np.arange(RawData.values.shape[0]))
+        self.CrossHairPlot.plot(self.RollingAvg,np.arange(self.RollingAvg.shape[0]))
+        """    
         plt.plot(RawData.values)
         plt.plot(self.RollingAvg)
         plt.show()
-    
+        """
     def calculateMetric(self,type,Data):
         if type  == "DayAvg":
             AvgDays = self.AvgDaysBox.value()
@@ -254,7 +259,7 @@ class MetricGroup(QtWidgets.QGroupBox):
             Kernel = np.zeros(shape = (Length,Length-AvgDay))
             for n in range(Length-AvgDay):
                 Kernel[n:n+AvgDay,n] = 1
-            print(Kernel)
+            #print(Kernel)
             return Kernel
 
     def checkAvgBox(self):
