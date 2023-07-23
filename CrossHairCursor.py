@@ -108,7 +108,7 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
             self.vertical_line.setPos(mouse_point.x())
             self.horizontal_line.setPos(mouse_point.y())
 
-    def plotBar(self,data,x_axis):
+    def plotBoxChart(self,data,x_axis):
         #print(x_axis)
         self.PlotWidget.setXRange(0,len(data))
         self.PlotWidget.show()
