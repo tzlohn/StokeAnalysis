@@ -95,6 +95,7 @@ class DataSourceGroup(QtWidgets.QGroupBox):
 
     def updateTicket(self):
         self.PeriodData = self.Data.loc[self.StartDate.text():self.EndDate.text()]
+        self.Date = self.PeriodData.axes[0].to_list()
 
     def getData(self):
         self.updateTicket()        
@@ -235,18 +236,33 @@ class MetricGroup(QtWidgets.QGroupBox):
         self.CrossHairPlot = CHC.CrosshairPlotWidget(parent = self)
 
     def plotCurves(self):
+        PackedRaw = self.packData(self.MainWin.DataSource.PeriodData)
         RawData = self.MainWin.DataSource.PeriodData["Close"]
-        
+        Date = self.getDate(RawData)
+
         if self.AvgDaysBox.isEnabled():
             self.calculateMetric(type = "DayAvg",Data = RawData.values)
 
-        self.CrossHairPlot.plot(RawData.values,np.arange(RawData.values.shape[0]))
+        self.CrossHairPlot.plotBar(PackedRaw,Date)
         self.CrossHairPlot.plot(self.RollingAvg,np.arange(self.RollingAvg.shape[0]))
         """    
         plt.plot(RawData.values)
         plt.plot(self.RollingAvg)
         plt.show()
         """
+    
+    def packData(self,RawData):
+        OpenData = RawData["Open"]
+        CloseData = RawData["Close"]
+        HighData = RawData["High"]
+        LowData = RawData["Low"]
+
+        return[(O,C,H,L) for O,C,H,L in zip(OpenData,CloseData,HighData,LowData)]
+
+    def getDate(self,TicketData):
+        Date = TicketData.axes[0]
+        return [str(date)[0:10] for date in Date]
+
     def calculateMetric(self,type,Data):
         if type  == "DayAvg":
             AvgDays = self.AvgDaysBox.value()
