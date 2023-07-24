@@ -244,7 +244,7 @@ class MetricGroup(QtWidgets.QGroupBox):
             self.calculateMetric(type = "DayAvg",Data = RawData.values)
 
         self.CrossHairPlot.plotBoxChart(PackedRaw,Date)
-        self.CrossHairPlot.plot(self.RollingAvg,np.arange(self.RollingAvg.shape[0]))
+        self.CrossHairPlot.plot(self.RollingAvg[0],self.RollingAvg[1])
         """    
         plt.plot(RawData.values)
         plt.plot(self.RollingAvg)
@@ -267,8 +267,9 @@ class MetricGroup(QtWidgets.QGroupBox):
         if type  == "DayAvg":
             AvgDays = self.AvgDaysBox.value()
             Kernel = self.createKernel(type = "DayAvg",AvgDay = AvgDays,Length = len(Data))
-            self.RollingAvg = np.dot(Data,Kernel)/AvgDays
-            self.RollingAvg = np.concatenate((np.asarray([0]*AvgDays),self.RollingAvg))
+            RollingAvg = np.dot(Data,Kernel)/AvgDays
+            #self.RollingAvg = np.concatenate((np.asarray([0]*AvgDays),self.RollingAvg))
+            self.RollingAvg = [RollingAvg,np.arange(AvgDays,len(Data),1)]
 
     def createKernel(self,type,AvgDay,Length):
         if type == "DayAvg":         
