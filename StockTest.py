@@ -146,23 +146,10 @@ def convertQColorToQIcon(color):
 
     return icon
 
-def ColorSelectComboBox(self):
+def ColorSelectComboBox(self,ColorList):
     ColorBox = QtWidgets.QComboBox(self)
-    RedIcon = convertQColorToQIcon(QtGui.QColor('red'))
-    ColorBox.addItem(RedIcon,"")
-    BlueIcon = convertQColorToQIcon(QtGui.QColor('blue'))
-    ColorBox.addItem(BlueIcon,"")
-    GreenIcon = convertQColorToQIcon(QtGui.QColor('green'))
-    ColorBox.addItem(GreenIcon,"")
-    BlackIcon = convertQColorToQIcon(QtGui.QColor('black'))
-    ColorBox.addItem(BlackIcon,"")
-    PurpleIcon = convertQColorToQIcon(QtGui.QColor('purple'))
-    ColorBox.addItem(PurpleIcon,"")
-    CyanIcon = convertQColorToQIcon(QtGui.QColor('cyan'))
-    ColorBox.addItem(CyanIcon,"")
-    OrangeIcon = convertQColorToQIcon(QtGui.QColor('orange'))
-    ColorBox.addItem(OrangeIcon,"")
-
+    for color in ColorList:
+        ColorBox.addItem(convertQColorToQIcon(QtGui.QColor(color)),"")    
     return ColorBox        
 
 class MetricGroup(QtWidgets.QGroupBox):
@@ -191,12 +178,12 @@ class MetricGroup(QtWidgets.QGroupBox):
         self.AvgDaysText = QtWidgets.QLabel(parent = self)
         self.AvgDaysText.setText("天平均")
 
-        self.AvgDaysColor = ColorSelectComboBox(self)
+        self.AvgDaysColor = ColorSelectComboBox(self,self.MainWin.ColorList)
         
         self.AvgMonCB = QtWidgets.QCheckBox(self)
         self.AvgMonCB.setText("月平均線")
 
-        self.AvgMonColor = ColorSelectComboBox(self)
+        self.AvgMonColor = ColorSelectComboBox(self,self.MainWin.ColorList)
 
         self.RSICB = QtWidgets.QCheckBox(self)
         self.RSICB.setText("RSI")
@@ -211,7 +198,7 @@ class MetricGroup(QtWidgets.QGroupBox):
         self.RSIDaysText = QtWidgets.QLabel(parent = self)
         self.RSIDaysText.setText("天RSI")
         
-        self.RSIDaysColor = ColorSelectComboBox(self)
+        self.RSIDaysColor = ColorSelectComboBox(self,self.MainWin.ColorList)
 
         self.PlotButton = QtWidgets.QPushButton(self)
         self.PlotButton.setText("觀察技術線")
@@ -240,17 +227,14 @@ class MetricGroup(QtWidgets.QGroupBox):
         RawData = self.MainWin.DataSource.PeriodData["Close"]
         Date = self.getDate(RawData)
 
+        self.CrossHairPlot.plotBoxChart(PackedRaw,Date)
+
         if self.AvgDaysBox.isEnabled():
             self.calculateMetric(type = "DayAvg",Data = RawData.values)
-
-        self.CrossHairPlot.plotBoxChart(PackedRaw,Date)
-        self.CrossHairPlot.plot(self.RollingAvg[0],self.RollingAvg[1])
-        """    
-        plt.plot(RawData.values)
-        plt.plot(self.RollingAvg)
-        plt.show()
-        """
-    
+            QColor = self.MainWin.ColorList[self.AvgDaysColor.currentIndex()]
+            print(QColor)
+            self.CrossHairPlot.plot(self.RollingAvg[0],self.RollingAvg[1],QColor)
+        
     def packData(self,RawData):
         OpenData = RawData["Open"]
         CloseData = RawData["Close"]
@@ -296,6 +280,7 @@ class MainWin(QtWidgets.QWidget):
         super().__init__()
 
         self.setWindowTitle("王家肉燥飯")
+        self.ColorList = ["red","blue","green","black","purple","cyan","orange"]
 
         self.DataSource = DataSourceGroup(self)
         self.Metric = MetricGroup(self)

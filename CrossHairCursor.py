@@ -132,9 +132,9 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
         Axis = self.PlotWidget.getAxis("bottom")    
         Axis.setTicks([[(value,name) for value,name in zip(list(IndexData),x_axis)]])
     
-    def plot(self,data,x_axis):
+    def plot(self,data,x_axis,QColor):
         self.PlotWidget.show()
-        self.PlotWidget.plotItem.plot(x_axis,data)
+        self.PlotWidget.plotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine})
        
 if __name__ == '__main__':
     # Create main application window
