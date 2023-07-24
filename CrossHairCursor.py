@@ -25,6 +25,9 @@ class MyAxisItem(pg.AxisItem):
         if self.style['tickFont'] is not None:
             p.setFont(self.style['tickFont'])
         p.setPen(self.textPen())
+        bounding = self.boundingRect().toAlignedRect()
+        Bounding = QtCore.QRect(bounding.x(),bounding.y(),bounding.width(),bounding.height()+50)
+        p.setClipRect(Bounding)
 
         for idx, (rect, flags, text) in enumerate(textSpecs):
             p.save()
@@ -49,6 +52,7 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
         self.RIGHT_X = 100
 
         AxisBottom = MyAxisItem(orientation="bottom")
+        AxisBottom.fixedHeight = 75
         self.PlotWidget = pg.PlotWidget(axisItems={"bottom":AxisBottom})
         if title is not None:
             self.PlotWidget.setWindowTitle(title)
