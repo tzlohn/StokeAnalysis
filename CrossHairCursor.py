@@ -27,19 +27,17 @@ class MyAxisItem(pg.AxisItem):
         p.setPen(self.textPen())
 
         for idx, (rect, flags, text) in enumerate(textSpecs):
-            if idx == 11:
-                p.save()
-                #p.translate(rect.x(), rect.x())
-                p.rotate(-90)
-                p.translate(0,rect.x()+rect.y()*(idx))
-                p.drawText(rect, flags, text)
-                # restoring the painter is *required*!!!
-                p.restore()
+            p.save()
+            p.rotate(-90)
+            p.translate(-rect.x()-rect.width()-rect.height(),rect.x()+rect.height()*2+rect.y())
+            p.drawText(rect, flags, text)
+            # restoring the painter is *required*!!!
+            p.restore()
 
 class CrosshairPlotWidget(QtWidgets.QWidget):
     """Scrolling plot with crosshair"""
     
-    def __init__(self,data = None,x_axis=None, parent=None):
+    def __init__(self,data = None,x_axis=None, parent=None, title = None):
         super().__init__()
 
         # Use for time.sleep (s)
@@ -51,12 +49,14 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
         self.RIGHT_X = 100
 
         AxisBottom = MyAxisItem(orientation="bottom")
-        self.PlotWidget = pg.PlotWidget(axisItems={"bottom":AxisBottom})        
+        self.PlotWidget = pg.PlotWidget(axisItems={"bottom":AxisBottom})
+        if title is not None:
+            self.PlotWidget.setWindowTitle(title)
+        self.PlotWidget.plotItem.layout.setContentsMargins(1,1,1,50)     
         self.PlotWidget.setXRange(self.LEFT_X, self.RIGHT_X)
         self.PlotWidget.setLabel('left', 'Value')
         self.PlotWidget.setLabel('bottom')
         self.crosshair_color = (196,220,255)
-
         self.layout = QtWidgets.QGridLayout()
         self.layout.addWidget(self.PlotWidget)
 

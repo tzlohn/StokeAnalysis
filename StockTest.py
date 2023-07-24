@@ -220,7 +220,7 @@ class MetricGroup(QtWidgets.QGroupBox):
         self.Layout.addWidget(self.PlotButton,4,1,1,2)
 
         self.setLayout(self.Layout)
-        self.CrossHairPlot = CHC.CrosshairPlotWidget(parent = self)
+        self.CrossHairPlot = CHC.CrosshairPlotWidget(parent = self, title = "本和里發財燒臘")
 
     def plotCurves(self):
         PackedRaw = self.packData(self.MainWin.DataSource.PeriodData)
@@ -279,7 +279,7 @@ class MainWin(QtWidgets.QWidget):
         super().__init__()
 
         self.setWindowTitle("王家肉燥飯")
-        self.ColorList = ["red","blue","green","black","purple","cyan","orange"]
+        self.ColorList = ["red","blue","green","white","purple","cyan","orange"]
 
         self.DataSource = DataSourceGroup(self)
         self.Metric = MetricGroup(self)
