@@ -5,7 +5,7 @@ import pyqtgraph as pg
 
 """Crosshair Plot Widget Example"""
 
-class MyAxisItem(pg.AxisItem):
+class MyAxisItem(pg.AxisItem):      
     def drawPicture(self, p, axisSpec, tickSpecs, textSpecs):
         p.setRenderHint(p.Antialiasing, False)
         p.setRenderHint(p.TextAntialiasing, True)
@@ -24,40 +24,17 @@ class MyAxisItem(pg.AxisItem):
         ## Draw all text
         if self.style['tickFont'] is not None:
             p.setFont(self.style['tickFont'])
-        p.setPen(self.pen())
+        p.setPen(self.textPen())
 
-        for rect, flags, text in textSpecs:
-            # this is the important part
-            p.save()
-            p.translate(rect.x(), rect.y())
-            p.rotate(-90)
-            p.drawText(-rect.width(), rect.height(), rect.width(), rect.height(), flags, text)
-            # restoring the painter is *required*!!!
-            p.restore()
-
-class RectItem(pg.GraphicsObject):
-    def __init__(self, rect, parent=None):
-        super().__init__(parent)
-        self._rect = rect
-        self.picture = QtGui.QPicture()
-        self._generate_picture()
-
-    @property
-    def rect(self):
-        return self._rect
-
-    def _generate_picture(self):
-        painter = QtGui.QPainter(self.picture)
-        painter.setPen(pg.mkPen("w"))
-        painter.setBrush(pg.mkBrush("g"))
-        painter.drawRect(self.rect)
-        painter.end()
-
-    def paint(self, painter, option, widget=None):
-        painter.drawPicture(0, 0, self.picture)
-
-    def boundingRect(self):
-        return QtCore.QRectF(self.picture.boundingRect())
+        for idx, (rect, flags, text) in enumerate(textSpecs):
+            if idx == 11:
+                p.save()
+                #p.translate(rect.x(), rect.x())
+                p.rotate(-90)
+                p.translate(0,rect.x()+rect.y()*(idx))
+                p.drawText(rect, flags, text)
+                # restoring the painter is *required*!!!
+                p.restore()
 
 class CrosshairPlotWidget(QtWidgets.QWidget):
     """Scrolling plot with crosshair"""
@@ -73,12 +50,21 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
         self.LEFT_X = 0
         self.RIGHT_X = 100
 
-        self.PlotWidget = pg.PlotWidget()
+        AxisBottom = MyAxisItem(orientation="bottom")
+        self.PlotWidget = pg.PlotWidget(axisItems={"bottom":AxisBottom})        
         self.PlotWidget.setXRange(self.LEFT_X, self.RIGHT_X)
         self.PlotWidget.setLabel('left', 'Value')
         self.PlotWidget.setLabel('bottom')
         self.crosshair_color = (196,220,255)
 
+        """replace the bottom axis to MyAxisItem"""
+        #AxisBottom = MyAxisItem(orientation="bottom",parent = self.PlotWidget.getPlotItem())
+        #self.PlotWidget.plotItem.setAxisItems({"bottom":AxisBottom})
+        """
+        AxisPos = self.PlotWidget.plotItem.axes["bottom"]["pos"]
+        self.PlotWidget.plotItem.axes["bottom"]["item"] = AxisBottom
+        self.PlotWidget.plotItem.axes["bottom"]["pos"] = AxisPos
+        #"""
         #self.crosshair_plot = self.PlotWidget.plot()
 
         self.layout = QtWidgets.QGridLayout()
@@ -142,10 +128,9 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
             self.PlotWidget.addItem(Rect)
             self.PlotWidget.addItem(WhiskerHigh)
             self.PlotWidget.addItem(WhiskerLow)
-        AxisBottom = self.PlotWidget.getAxis("bottom")
-        #AxisBottom = MyAxisItem(orientation="bottom")
-        AxisBottom.setTicks([[(value,name) for value,name in zip(list(IndexData),x_axis)]])
-        #self.PlotWidget.plotItem.addItem(AxisBottom)
+
+        Axis = self.PlotWidget.getAxis("bottom")    
+        Axis.setTicks([[(value,name) for value,name in zip(list(IndexData),x_axis)]])
     
     def plot(self,data,x_axis):
         self.PlotWidget.show()
@@ -166,10 +151,11 @@ if __name__ == '__main__':
     crosshair_plot = CrosshairPlotWidget()
     date = ['2023-06-21', '2023-06-26', '2023-06-27', '2023-06-28', '2023-06-29', '2023-06-30', '2023-07-03', '2023-07-04', '2023-07-05', '2023-07-06', '2023-07-07', '2023-07-10', '2023-07-11', '2023-07-12', '2023-07-13', '2023-07-14', '2023-07-17', '2023-07-18', '2023-07-19', '2023-07-20', '2023-07-21']
     data = [(130.5500030517578, 130.5500030517578, 131.0500030517578, 130.25), (130.35000610351562, 129.75, 130.35000610351562, 129.39999389648438), (129.14999389648438, 128.89999389648438, 129.5500030517578, 128.6999969482422), (129.35000610351562, 129.10000610351562, 129.6999969482422, 128.8000030517578), (129.75, 129.0500030517578, 130.5, 128.89999389648438), (128.8000030517578, 129.10000610351562, 129.10000610351562, 128.3000030517578), (129.60000610351562, 130.6999969482422, 130.6999969482422, 129.60000610351562), (130.75, 131.0, 131.14999389648438, 130.5500030517578), (131.0, 130.8000030517578, 131.1999969482422, 130.39999389648438), (129.6999969482422, 127.9000015258789, 129.6999969482422, 127.69999694824219), (127.55000305175781, 127.69999694824219, 128.3000030517578, 127.0999984741211), (128.10000610351562, 127.44999694824219, 128.5, 127.0), (128.0, 129.1999969482422, 129.1999969482422, 128.0), (129.3000030517578, 129.4499969482422, 129.4499969482422, 128.85000610351562), (131.3000030517578, 130.89999389648438, 131.89999389648438, 130.85000610351562), (131.4499969482422, 132.25, 132.5, 131.4499969482422), (132.0, 132.0, 132.1999969482422, 131.75), (131.0, 129.85000610351562, 131.0, 129.6999969482422), (130.14999389648438, 128.75, 130.5, 128.75), (129.0500030517578, 129.35000610351562, 129.6999969482422, 129.0), (127.4000015258789, 127.19999694824219, 127.4000015258789, 126.5)]
-    crosshair_plot.plotBar(data,date)
+    crosshair_plot.plotBoxChart(data,date)
+    """
     for idx,d in enumerate(data):
         print("%d: %.2f,%.2f,%.2f,%.2f"%(idx,d[0],d[1],d[2],d[3]))
-
+    """
     ## Start Qt event loop unless running in interactive mode or using pyside.
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         QtWidgets.QApplication.instance().exec_()
