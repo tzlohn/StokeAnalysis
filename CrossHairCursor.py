@@ -57,16 +57,6 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
         self.PlotWidget.setLabel('bottom')
         self.crosshair_color = (196,220,255)
 
-        """replace the bottom axis to MyAxisItem"""
-        #AxisBottom = MyAxisItem(orientation="bottom",parent = self.PlotWidget.getPlotItem())
-        #self.PlotWidget.plotItem.setAxisItems({"bottom":AxisBottom})
-        """
-        AxisPos = self.PlotWidget.plotItem.axes["bottom"]["pos"]
-        self.PlotWidget.plotItem.axes["bottom"]["item"] = AxisBottom
-        self.PlotWidget.plotItem.axes["bottom"]["pos"] = AxisPos
-        #"""
-        #self.crosshair_plot = self.PlotWidget.plot()
-
         self.layout = QtWidgets.QGridLayout()
         self.layout.addWidget(self.PlotWidget)
 

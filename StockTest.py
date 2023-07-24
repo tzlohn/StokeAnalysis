@@ -232,7 +232,6 @@ class MetricGroup(QtWidgets.QGroupBox):
         if self.AvgDaysBox.isEnabled():
             self.calculateMetric(type = "DayAvg",Data = RawData.values)
             QColor = self.MainWin.ColorList[self.AvgDaysColor.currentIndex()]
-            print(QColor)
             self.CrossHairPlot.plot(self.RollingAvg[0],self.RollingAvg[1],QColor)
         
     def packData(self,RawData):
