@@ -163,7 +163,7 @@ class MetricGroup(QtWidgets.QGroupBox):
         self.RawCB.setText("完整資料")
 
         self.DayLineCB = QtWidgets.QCheckBox(self)
-        self.DayLineCB.setText("日線")             
+        self.DayLineCB.setText("日K線")             
 
         self.AvgCB = QtWidgets.QCheckBox(self)
         self.AvgCB.setText("平均線")
@@ -274,19 +274,111 @@ class MetricGroup(QtWidgets.QGroupBox):
         else:
             self.RSIDaysBox.setEnabled(True)
 
+class Condition(QtWidgets.QWidget):
+    def __init__(self,parent):
+        super().__init__()
+        self.ConditionWin = parent
+
+        self.MetricsOption1 = QtWidgets.QComboBox(self)
+        self.MetricsOption1.addItems(self.ConditionWin.MainWin.MetricList)
+        self.MetricsOption1.currentTextChanged.connect(lambda func:self.changeMetricCondition(1,self.MetricsOption1.currentText()))
+
+        self.MetricsCondition1 = QtWidgets.QComboBox(self)
+        self.MetricsCondition1.addItems(["開盤","收盤","最高","最低"])
+
+        self.Condition = QtWidgets.QComboBox(self)
+        self.Condition.addItems(["<","=",">"])
+
+        self.MetricsOption2 = QtWidgets.QComboBox(self)
+        self.MetricsOption2.addItems(self.ConditionWin.MainWin.MetricList)
+
+        self.MetricsCondition2 = QtWidgets.QComboBox(self)
+        self.MetricsCondition2.addItems(["開盤","收盤","最高","最低"])
+        self.MetricsOption2.currentTextChanged.connect(lambda func:self.changeMetricCondition(2,self.MetricsOption2.currentText()))
+
+        self.LabelColor = ColorSelectComboBox(self,self.ConditionWin.MainWin.ColorList)
+
+        self.Layout = QtWidgets.QGridLayout(self)
+        self.Layout.addWidget(self.MetricsOption1,0,0,1,1)
+        self.Layout.addWidget(self.MetricsCondition1,0,1,1,1)
+        self.Layout.addWidget(self.Condition,0,2,1,1)        
+        self.Layout.addWidget(self.MetricsOption2,0,3,1,1)
+        self.Layout.addWidget(self.MetricsCondition2,0,4,1,1)
+        self.Layout.addWidget(self.LabelColor,0,5,1,1)
+        
+        self.setLayout(self.Layout)
+
+    def changeMetricCondition(self,idx,txt):
+        match idx:
+            case 1:
+                if txt == "日線":
+                    self.MetricsCondition1.setEnabled(True)
+                else:
+                    self.MetricsCondition1.setDisabled(True)
+            case 2:
+                if txt == "日線":
+                    self.MetricsCondition2.setEnabled(True)
+                else:
+                    self.MetricsCondition2.setDisabled(True)
+            case _:
+                pass
+
+class ConditionGroup(QtWidgets.QGroupBox):
+    def __init__(self,parent):
+        super().__init__()
+        self.MainWin = parent
+        self.setTitle("條件分析")
+
+
+        self.ConditionList = list()
+        self.Condition1 = Condition(self)
+        self.ConditionList.append(self.Condition1)
+        
+        self.AnalyzeButton = QtWidgets.QPushButton(self)
+        self.AnalyzeButton.setText("標示區間")
+        self.AnalyzeButton.clicked.connect(self.getData)
+
+        self.PMLabel = QtWidgets.QLabel(parent = self, text = "標記+/-")
+        self.DaysLabel = QtWidgets.QLabel(parent = self, text = "天")
+        self.DaySpinBox = QtWidgets.QSpinBox(self)
+        self.DaySpinBox.setValue(5)
+        self.DaySpinBox.setMinimum(0)
+        self.DaySpinBox.setMaximum(30)
+
+        self.Layout = QtWidgets.QGridLayout(self)
+        self.Layout.addWidget(self.Condition1,0,0,1,4)
+        self.Layout.addWidget(self.PMLabel,1,0,1,1)
+        self.Layout.addWidget(self.DaySpinBox,1,1,1,1)
+        self.Layout.addWidget(self.DaysLabel,1,2,1,1)
+        self.Layout.addWidget(self.AnalyzeButton,1,3,1,1)
+
+        self.setLayout(self.Layout)
+    
+    def getData(self):
+        for Condition in self.ConditionList:
+            Metric1 = Condition.MetricsOption1.currentText()
+            if not Condition.MetricsCondition1.isDisabled():
+                Option1 = Condition.MetricsCondition1.currentText()
+            Metric2 = Condition.MetricsOption1.currentText()
+            if not Condition.MetricsCondition2.isDisabled():
+                Option2 = Condition.MetricsCondition2.currentText()
+    
 class MainWin(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("王家肉燥飯")
         self.ColorList = ["red","blue","green","white","purple","cyan","orange"]
+        self.MetricList = ["日線","日均線","RSI"]
 
         self.DataSource = DataSourceGroup(self)
         self.Metric = MetricGroup(self)
+        self.Condition = ConditionGroup(self)
 
         self.Layout = QtWidgets.QGridLayout()
         self.Layout.addWidget(self.DataSource,0,0,2,2)
         self.Layout.addWidget(self.Metric,2,0,2,2)
+        self.Layout.addWidget(self.Condition,4,0,2,2)
         self.setLayout(self.Layout)
 
 if __name__ == "__main__":

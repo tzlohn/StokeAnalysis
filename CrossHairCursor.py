@@ -32,7 +32,7 @@ class MyAxisItem(pg.AxisItem):
         for idx, (rect, flags, text) in enumerate(textSpecs):
             p.save()
             p.rotate(-90)
-            p.translate(-rect.x()-rect.width()-rect.height(),rect.x()+rect.height()*2+rect.y())
+            p.translate(-rect.x()-rect.width()-rect.height(),rect.x()+rect.height()*2)
             p.drawText(rect, flags, text)
             # restoring the painter is *required*!!!
             p.restore()
