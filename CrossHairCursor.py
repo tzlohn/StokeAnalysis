@@ -134,7 +134,6 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
         if range == 0:
             Lines = list()
             for pos in Pos:
-                print(pos)
                 line = pg.InfiniteLine(angle=90)
                 line.setPen(self.crosshair_color)
                 self.PlotWidget.addItem(line, ignoreBounds=True)
