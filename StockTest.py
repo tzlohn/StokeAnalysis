@@ -4,6 +4,9 @@ from PyQt5 import QtCore,QtWidgets,QtGui
 from  matplotlib import pyplot as plt
 import sys
 import CrossHairCursor as CHC
+import operator
+
+OPDict = {">":operator.gt,"=":operator.eq,">":operator.lt}
 
 class DataSourceGroup(QtWidgets.QGroupBox):
     def __init__(self,parent):
@@ -36,7 +39,7 @@ class DataSourceGroup(QtWidgets.QGroupBox):
         self.EndDate = QtWidgets.QLineEdit(self)
         self.EndDate.setText(str(self.Data.index.date[-1]))
 
-        self.StartButton = QtWidgets.QPushButton("開始計算")
+        self.StartButton = QtWidgets.QPushButton("更新資料")
         self.StartButton.clicked.connect(self.getData)
 
         self.layout = QtWidgets.QGridLayout(self)
@@ -81,7 +84,6 @@ class DataSourceGroup(QtWidgets.QGroupBox):
         self.Unit = self.transferUnit()
         self.Period = str(self.DigitBox.value()) + self.Unit
         self.Data = self.Ticket.history(period = self.Period)
-
     
     def resetPeriod(self):
         self.Unit = self.transferUnit()
@@ -98,7 +100,13 @@ class DataSourceGroup(QtWidgets.QGroupBox):
         self.Date = self.PeriodData.axes[0].to_list()
 
     def getData(self):
-        self.updateTicket()        
+        self.updateTicket()
+        #self.DefaultAnalysis() 
+        self.MainWin.Metric.setEnabled(True)
+        self.MainWin.Condition.setEnabled(True)  
+        self.MainWin.Metric.packData(self.PeriodData)     
+    
+    def DefaultAnalysis(self):
         High = self.PeriodData["High"]
         Low = self.PeriodData["Low"]
         Close = self.PeriodData["Close"]
@@ -106,7 +114,6 @@ class DataSourceGroup(QtWidgets.QGroupBox):
         Cash = 1
         BuyCount = 0
         SellCount = 0
-
         for n in range(1,len(High)):
             if Close[n] > High[n-1]:
                 Cash = Cash - 1 # Buy
@@ -158,6 +165,8 @@ class MetricGroup(QtWidgets.QGroupBox):
 
         self.MainWin = parent
         self.setTitle("技術線型")
+        
+        self.MainWin.sig_FoundPoints.connect(self.plotBlocks)
 
         self.RawCB = QtWidgets.QCheckBox(self)
         self.RawCB.setText("完整資料")
@@ -223,13 +232,10 @@ class MetricGroup(QtWidgets.QGroupBox):
         self.CrossHairPlot = CHC.CrosshairPlotWidget(parent = self, title = "本和里發財燒臘")
 
     def plotCurves(self):
-        PackedRaw = self.packData(self.MainWin.DataSource.PeriodData)
-        RawData = self.MainWin.DataSource.PeriodData["Close"]
-        Date = self.getDate(RawData)
-
-        self.CrossHairPlot.plotBoxChart(PackedRaw,Date)
+        self.CrossHairPlot.plotBoxChart(self.PackedRaw,self.Date)
 
         if self.AvgDaysBox.isEnabled():
+            RawData = self.MainWin.DataSource.PeriodData["Close"]
             self.calculateMetric(type = "DayAvg",Data = RawData.values)
             QColor = self.MainWin.ColorList[self.AvgDaysColor.currentIndex()]
             self.CrossHairPlot.plot(self.RollingAvg[0],self.RollingAvg[1],QColor)
@@ -240,7 +246,8 @@ class MetricGroup(QtWidgets.QGroupBox):
         HighData = RawData["High"]
         LowData = RawData["Low"]
 
-        return[(O,C,H,L) for O,C,H,L in zip(OpenData,CloseData,HighData,LowData)]
+        self.Date = self.getDate(LowData)
+        self.PackedRaw = [(O,C,H,L) for O,C,H,L in zip(OpenData,CloseData,HighData,LowData)]
 
     def getDate(self,TicketData):
         Date = TicketData.axes[0]
@@ -273,6 +280,13 @@ class MetricGroup(QtWidgets.QGroupBox):
             self.RSIDaysBox.setDisabled(True)
         else:
             self.RSIDaysBox.setEnabled(True)
+    
+    QtCore.pyqtSlot(list)
+    def plotBlocks(self,FoundPoints):
+        for points in FoundPoints:
+            self.CrossHairPlot.plotZone(points,0)
+            #for point in points:
+                #print(self.Date[point])
 
 class Condition(QtWidgets.QWidget):
     def __init__(self,parent):
@@ -329,14 +343,13 @@ class ConditionGroup(QtWidgets.QGroupBox):
         self.MainWin = parent
         self.setTitle("條件分析")
 
-
         self.ConditionList = list()
         self.Condition1 = Condition(self)
         self.ConditionList.append(self.Condition1)
         
         self.AnalyzeButton = QtWidgets.QPushButton(self)
         self.AnalyzeButton.setText("標示區間")
-        self.AnalyzeButton.clicked.connect(self.getData)
+        self.AnalyzeButton.clicked.connect(self.pickDataPoint)
 
         self.PMLabel = QtWidgets.QLabel(parent = self, text = "標記+/-")
         self.DaysLabel = QtWidgets.QLabel(parent = self, text = "天")
@@ -354,16 +367,78 @@ class ConditionGroup(QtWidgets.QGroupBox):
 
         self.setLayout(self.Layout)
     
-    def getData(self):
+    def pickDataPoint(self):
+        Data1 = list()
+        Data2 = list()
+        Operator = list()
         for Condition in self.ConditionList:
+            Option1 = None
+            Option2 = None
             Metric1 = Condition.MetricsOption1.currentText()
-            if not Condition.MetricsCondition1.isDisabled():
+            if Condition.MetricsCondition1.isEnabled():
                 Option1 = Condition.MetricsCondition1.currentText()
-            Metric2 = Condition.MetricsOption1.currentText()
-            if not Condition.MetricsCondition2.isDisabled():
+            else:
+                Metric1 = Metric1[-3:]
+            Metric2 = Condition.MetricsOption2.currentText()
+            if Condition.MetricsCondition2.isEnabled():
                 Option2 = Condition.MetricsCondition2.currentText()
+            else:
+                Metric2 = Metric2[-3:]
+            Data1.append(self.getData(Metric1,Option1))
+            Data2.append(self.getData(Metric2,Option2))
+            Operator.append(Condition.Condition.currentText())
+        
+        FoundPoints = self.compareData(Data1,Data2,Operator)
+        self.MainWin.sig_FoundPoints.emit(FoundPoints)
+    
+    def compareData(self,Data1,Data2,Operator):
+        Points = list()
+        for data1, data2, op in zip(Data1,Data2,Operator):
+            d0 = max(data1[1][0],data2[1][0])
+            if data1[1][0] == d0:
+                offset = np.where(data2[1]==d0)[0][0]
+                data2[0] = data2[0][offset:]
+                data2[1] = data2[1][offset:]
+            else:
+                offset = np.where(data1[1]==d0)[0][0]
+                data1[0] = data1[0][offset:]
+                data1[1] = data1[1][offset:]
+            data = data1[0] - data2[0]
+            data = np.multiply(np.insert(data,0,0),np.append(data,0))
+            points = np.where(data < 0)[0]
+            Points.append([data1[1][idx] for idx in points.tolist() if idx < data1[1].shape[0]])
+        return Points              
+
+                
+    def getData(self,text,Option = None):
+        match text:
+            case "日線":
+                DateSN = np.arange(len(self.MainWin.Metric.PackedRaw))
+                Data = self.MainWin.DataSource.PeriodData
+                match Option:
+                    case "開盤":
+                        Data = Data["Open"]
+                    case "收盤":
+                        Data = Data["Close"]
+                    case "最高":
+                        Data = Data["High"]
+                    case "最低":
+                        Data = Data["Low"]
+                    case _:
+                        pass
+                Data = [Data.values,DateSN]
+            case "日均線":
+                Data = self.MainWin.Metric.RollingAvg
+            case "RSI":
+                pass
+            case _:
+                pass
+        
+        return Data
     
 class MainWin(QtWidgets.QWidget):
+    sig_FoundPoints = QtCore.pyqtSignal(list)
+
     def __init__(self):
         super().__init__()
 
@@ -374,6 +449,8 @@ class MainWin(QtWidgets.QWidget):
         self.DataSource = DataSourceGroup(self)
         self.Metric = MetricGroup(self)
         self.Condition = ConditionGroup(self)
+        self.Metric.setDisabled(True)
+        self.Condition.setDisabled(True)
 
         self.Layout = QtWidgets.QGridLayout()
         self.Layout.addWidget(self.DataSource,0,0,2,2)

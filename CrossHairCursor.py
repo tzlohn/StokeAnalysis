@@ -129,6 +129,17 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
     def plot(self,data,x_axis,QColor):
         self.PlotWidget.show()
         self.PlotWidget.plotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine})
+    
+    def plotZone(self,Pos,range):
+        if range == 0:
+            Lines = list()
+            for pos in Pos:
+                print(pos)
+                line = pg.InfiniteLine(angle=90)
+                line.setPen(self.crosshair_color)
+                self.PlotWidget.addItem(line, ignoreBounds=True)
+                line.setPos(pos)
+                Lines.append(line)
        
 if __name__ == '__main__':
     # Create main application window
