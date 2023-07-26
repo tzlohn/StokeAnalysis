@@ -307,7 +307,7 @@ class MetricGroup(QtWidgets.QGroupBox):
         for points in FoundPoints:
             self.CrossHairPlot.plotZone(points[0],0,points[1])
             #for point in points[0]:
-            #    print(point,self.Date[point])
+            #    print(point,self.Date[int(round(point))])
 
 class Condition(QtWidgets.QWidget):
     def __init__(self,parent):
@@ -428,14 +428,29 @@ class ConditionGroup(QtWidgets.QGroupBox):
                 data1[0] = data1[0][offset:]
                 data1[1] = data1[1][offset:]
             if op == ">":
-                data = data1[0] - data2[0]
+                ShiftData = data1[0] - data2[0]
             else:
-                data = data2[0] - data1[0]
-            data = np.multiply(np.insert(data,0,0),np.append(data,0))
+                ShiftData = data2[0] - data1[0]
+            data = np.multiply(np.insert(ShiftData,0,0),np.append(ShiftData,0))
             points = np.where(data < 0)[0]
-            Points.append([data1[1][idx-1] for idx in points.tolist() if idx < data1[1].shape[0] and data[idx+1] > 0])
-        return Points              
+            CrossPosition = self.calcCrossPoint(points,data1,data2)
+            Points.append([pnt[1] for pnt in CrossPosition if pnt[0] < data1[1].shape[0] and ShiftData[pnt[0]] > 0])
+        return Points
 
+    def calcCrossPoint(self,points,data1,data2):
+        Points = list()
+        for pnt in points.tolist():
+            db = data1[0][pnt]-data1[0][pnt-1]
+            da = data1[1][pnt-1]-data1[1][pnt]
+            e = db*data1[1][pnt]+da*data1[0][pnt]
+            dd = data2[0][pnt]-data2[0][pnt-1]
+            dc = data2[1][pnt-1]-data2[1][pnt]
+            f = dd*data2[1][pnt]+dc*data2[0][pnt]
+            M = np.array([[db,da],[dd,dc]])
+            V = np.array([e,f])
+            S = np.dot(np.linalg.inv(M),V)
+            Points.append([pnt,S[0]])    
+        return Points
                 
     def getData(self,text,Option = None):
         match text:

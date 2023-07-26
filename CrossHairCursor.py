@@ -135,7 +135,7 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
             Lines = list()
             for pos in Pos:
                 line = pg.InfiniteLine(angle=90)
-                line.setPen(QtGui.QPen(QtGui.QColor(color),0.05,QtCore.Qt.DotLine))
+                line.setPen(QtGui.QPen(QtGui.QColor(color),0.1,QtCore.Qt.DotLine))
                 self.PlotWidget.addItem(line, ignoreBounds=True)
                 line.setPos(pos)
                 Lines.append(line)
