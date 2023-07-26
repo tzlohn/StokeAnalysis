@@ -165,14 +165,23 @@ class MetricGroup(QtWidgets.QGroupBox):
 
         self.MainWin = parent
         self.setTitle("技術線型")
-        
+        self.OptionDict ={0:"Open",1:"Close",2:"High",3:"Low"}
+           
         self.MainWin.sig_FoundPoints.connect(self.plotBlocks)
 
         self.RawCB = QtWidgets.QCheckBox(self)
         self.RawCB.setText("完整資料")
 
+        self.DayBoxCB = QtWidgets.QCheckBox(self)
+        self.DayBoxCB.setText("日K線")
+
         self.DayLineCB = QtWidgets.QCheckBox(self)
-        self.DayLineCB.setText("日K線")             
+        self.DayLineCB.setText("日線")
+
+        self.DayLineOpt = QtWidgets.QComboBox(self)
+        self.DayLineOpt.addItems(["開盤","收盤","最高","最低"])
+
+        self.DayLineColor = ColorSelectComboBox(self,self.MainWin.ColorList)               
 
         self.AvgCB = QtWidgets.QCheckBox(self)
         self.AvgCB.setText("平均線")
@@ -191,6 +200,7 @@ class MetricGroup(QtWidgets.QGroupBox):
         
         self.AvgMonCB = QtWidgets.QCheckBox(self)
         self.AvgMonCB.setText("月平均線")
+        self.AvgMonCB.setDisabled(True)
 
         self.AvgMonColor = ColorSelectComboBox(self,self.MainWin.ColorList)
 
@@ -215,26 +225,37 @@ class MetricGroup(QtWidgets.QGroupBox):
 
         self.Layout = QtWidgets.QGridLayout(self)
         self.Layout.addWidget(self.RawCB,0,0,1,2)
-        self.Layout.addWidget(self.DayLineCB,0,2,1,2)
-        self.Layout.addWidget(self.AvgCB,1,0,1,2)
-        self.Layout.addWidget(self.AvgDaysBox,1,2,1,1)
-        self.Layout.addWidget(self.AvgDaysText,1,3,1,1)
-        self.Layout.addWidget(self.AvgDaysColor,1,4,1,1)
-        self.Layout.addWidget(self.AvgMonCB,2,0,1,2)
-        self.Layout.addWidget(self.AvgMonColor,2,4,1,1)
-        self.Layout.addWidget(self.RSICB,3,0,1,2)
-        self.Layout.addWidget(self.RSIDaysBox,3,2,1,1)
-        self.Layout.addWidget(self.RSIDaysText,3,3,1,1)
-        self.Layout.addWidget(self.RSIDaysColor,3,4,1,1)
-        self.Layout.addWidget(self.PlotButton,4,1,1,2)
+        self.Layout.addWidget(self.DayBoxCB,0,2,1,2)
+        self.Layout.addWidget(self.DayLineCB,1,0,1,2)
+        self.Layout.addWidget(self.DayLineOpt,1,2,1,1)
+        self.Layout.addWidget(self.DayLineColor,1,4,1,1)
+        self.Layout.addWidget(self.AvgCB,2,0,1,2)
+        self.Layout.addWidget(self.AvgDaysBox,2,2,1,1)
+        self.Layout.addWidget(self.AvgDaysText,2,3,1,1)
+        self.Layout.addWidget(self.AvgDaysColor,2,4,1,1)
+        self.Layout.addWidget(self.AvgMonCB,3,0,1,2)
+        self.Layout.addWidget(self.AvgMonColor,3,4,1,1)
+        self.Layout.addWidget(self.RSICB,4,0,1,2)
+        self.Layout.addWidget(self.RSIDaysBox,4,2,1,1)
+        self.Layout.addWidget(self.RSIDaysText,4,3,1,1)
+        self.Layout.addWidget(self.RSIDaysColor,4,4,1,1)
+        self.Layout.addWidget(self.PlotButton,5,1,1,2)
 
         self.setLayout(self.Layout)
         self.CrossHairPlot = CHC.CrosshairPlotWidget(parent = self, title = "本和里發財燒臘")
 
     def plotCurves(self):
-        self.CrossHairPlot.plotBoxChart(self.PackedRaw,self.Date)
+        
+        if self.DayBoxCB.isChecked():
+            self.CrossHairPlot.plotBoxChart(self.PackedRaw,self.Date)
+        
+        if self.DayLineCB.isChecked():
+            Option = self.DayLineOpt.currentIndex()
+            self.RawData = self.MainWin.DataSource.PeriodData[self.OptionDict[Option]]
+            QColor = self.MainWin.ColorList[self.DayLineColor.currentIndex()]
+            self.CrossHairPlot.plot(self.RawData.values,np.arange(self.RawData.values.shape[0]),QColor)
 
-        if self.AvgDaysBox.isEnabled():
+        if self.AvgCB.isChecked():
             RawData = self.MainWin.DataSource.PeriodData["Close"]
             self.calculateMetric(type = "DayAvg",Data = RawData.values)
             QColor = self.MainWin.ColorList[self.AvgDaysColor.currentIndex()]
@@ -284,9 +305,9 @@ class MetricGroup(QtWidgets.QGroupBox):
     QtCore.pyqtSlot(list)
     def plotBlocks(self,FoundPoints):
         for points in FoundPoints:
-            self.CrossHairPlot.plotZone(points,0)
-            #for point in points:
-                #print(self.Date[point])
+            self.CrossHairPlot.plotZone(points[0],0,points[1])
+            #for point in points[0]:
+            #    print(point,self.Date[point])
 
 class Condition(QtWidgets.QWidget):
     def __init__(self,parent):
@@ -371,6 +392,7 @@ class ConditionGroup(QtWidgets.QGroupBox):
         Data1 = list()
         Data2 = list()
         Operator = list()
+        Colors = list()
         for Condition in self.ConditionList:
             Option1 = None
             Option2 = None
@@ -387,9 +409,11 @@ class ConditionGroup(QtWidgets.QGroupBox):
             Data1.append(self.getData(Metric1,Option1))
             Data2.append(self.getData(Metric2,Option2))
             Operator.append(Condition.Condition.currentText())
+
+            Colors.append(self.MainWin.ColorList[Condition.LabelColor.currentIndex()])
         
-        FoundPoints = self.compareData(Data1,Data2,Operator)
-        self.MainWin.sig_FoundPoints.emit(FoundPoints)
+            FoundPoints = self.compareData(Data1,Data2,Operator)
+        self.MainWin.sig_FoundPoints.emit([(fp,color) for fp, color in zip(FoundPoints,Colors)])
     
     def compareData(self,Data1,Data2,Operator):
         Points = list()
@@ -403,10 +427,13 @@ class ConditionGroup(QtWidgets.QGroupBox):
                 offset = np.where(data1[1]==d0)[0][0]
                 data1[0] = data1[0][offset:]
                 data1[1] = data1[1][offset:]
-            data = data1[0] - data2[0]
+            if op == ">":
+                data = data1[0] - data2[0]
+            else:
+                data = data2[0] - data1[0]
             data = np.multiply(np.insert(data,0,0),np.append(data,0))
             points = np.where(data < 0)[0]
-            Points.append([data1[1][idx] for idx in points.tolist() if idx < data1[1].shape[0]])
+            Points.append([data1[1][idx-1] for idx in points.tolist() if idx < data1[1].shape[0] and data[idx+1] > 0])
         return Points              
 
                 
