@@ -5,6 +5,7 @@ from  matplotlib import pyplot as plt
 import sys
 import CrossHairCursor as CHC
 import operator
+from matplotlib import pyplot
 
 OPDict = {">":operator.gt,"=":operator.eq,">":operator.lt}
 
@@ -17,7 +18,7 @@ class DataSourceGroup(QtWidgets.QGroupBox):
 
         self.TickerLabel = QtWidgets.QLabel(parent = self,text = "代碼:")
         self.TickerBox = QtWidgets.QComboBox(self)
-        self.TickerBox.addItems(["0050.TW","2330.TW"])
+        self.TickerBox.addItems(["0050.TW","2330.TW","^TWII"])
         self.TickerBox.currentIndexChanged.connect(self.getTicket)
         self.PeriodLabel = QtWidgets.QLabel(parent = self,text = "載入資料期間(從現在回朔):")
         self.DigitBox = QtWidgets.QSpinBox(self)
@@ -305,56 +306,117 @@ class MetricGroup(QtWidgets.QGroupBox):
     QtCore.pyqtSlot(list)
     def plotBlocks(self,FoundPoints):
         for points in FoundPoints:
-            self.CrossHairPlot.plotZone(points[0],0,points[1])
+            match points[2]:
+                case "In":
+                    LineThick = 0.05
+                case "Out":
+                    LineThick = 0.06
+            
+            self.CrossHairPlot.plotZone(points[0],0,points[1],LineThick)
             #for point in points[0]:
             #    print(point,self.Date[int(round(point))])
 
-class Condition(QtWidgets.QWidget):
-    def __init__(self,parent):
+class Condition(QtWidgets.QGroupBox):
+    def __init__(self,parent,name = None):
         super().__init__()
         self.ConditionWin = parent
+        self.setTitle(name)
+        self.RowNo = 0
 
-        self.MetricsOption1 = QtWidgets.QComboBox(self)
-        self.MetricsOption1.addItems(self.ConditionWin.MainWin.MetricList)
-        self.MetricsOption1.currentTextChanged.connect(lambda func:self.changeMetricCondition(1,self.MetricsOption1.currentText()))
+        self.MetricsOption1 = list()
+        self.MetricsOption2 = list()
+        self.MetricsCondition1 = list()
+        self.MetricsCondition2 = list()
+        self.DayOffset1 = list()
+        self.DayOffset2 = list()
+        self.Operator = list()
+        self.AndOr = list()
+        self.LabelColor = list()
 
-        self.MetricsCondition1 = QtWidgets.QComboBox(self)
-        self.MetricsCondition1.addItems(["開盤","收盤","最高","最低"])
+        self.addWidgets()
 
-        self.Condition = QtWidgets.QComboBox(self)
-        self.Condition.addItems(["<","=",">"])
+    def addWidgets(self):
+        MetricsOption1 = QtWidgets.QComboBox(self)
+        MetricsOption1.addItems(self.ConditionWin.MainWin.MetricList)
+        MetricsOption1.currentTextChanged.connect(lambda func:self.changeMetricCondition(1,MetricsOption1.currentText(),self.RowNo))
+        self.MetricsOption1.append(MetricsOption1)
 
-        self.MetricsOption2 = QtWidgets.QComboBox(self)
-        self.MetricsOption2.addItems(self.ConditionWin.MainWin.MetricList)
+        MetricsCondition1 = QtWidgets.QComboBox(self)
+        MetricsCondition1.addItems(["開盤","收盤","最高","最低"])
+        self.MetricsCondition1.append(MetricsCondition1)
 
-        self.MetricsCondition2 = QtWidgets.QComboBox(self)
-        self.MetricsCondition2.addItems(["開盤","收盤","最高","最低"])
-        self.MetricsOption2.currentTextChanged.connect(lambda func:self.changeMetricCondition(2,self.MetricsOption2.currentText()))
+        DayOffset1 = QtWidgets.QSpinBox(self)
+        DayOffset1.setMinimum(-10)
+        DayOffset1.setMaximum(0)
+        self.DayOffset1.append(DayOffset1)
 
-        self.LabelColor = ColorSelectComboBox(self,self.ConditionWin.MainWin.ColorList)
+        DayOffset2 = QtWidgets.QSpinBox(self)
+        DayOffset2.setMinimum(-10)
+        DayOffset2.setMaximum(0)
+        self.DayOffset2.append(DayOffset2)
 
-        self.Layout = QtWidgets.QGridLayout(self)
-        self.Layout.addWidget(self.MetricsOption1,0,0,1,1)
-        self.Layout.addWidget(self.MetricsCondition1,0,1,1,1)
-        self.Layout.addWidget(self.Condition,0,2,1,1)        
-        self.Layout.addWidget(self.MetricsOption2,0,3,1,1)
-        self.Layout.addWidget(self.MetricsCondition2,0,4,1,1)
-        self.Layout.addWidget(self.LabelColor,0,5,1,1)
+        Condition = QtWidgets.QComboBox(self)
+        Condition.addItems(["<","=",">"])
+        self.Operator.append(Condition)
+
+        MetricsOption2 = QtWidgets.QComboBox(self)
+        MetricsOption2.addItems(self.ConditionWin.MainWin.MetricList)
+        MetricsOption2.currentTextChanged.connect(lambda func:self.changeMetricCondition(2,MetricsOption2.currentText(),self.RowNo))
+        self.MetricsOption2.append(MetricsOption2)
+
+        MetricsCondition2 = QtWidgets.QComboBox(self)
+        MetricsCondition2.addItems(["開盤","收盤","最高","最低"])
+        self.MetricsCondition2.append(MetricsCondition2)
+
+        AddConditionButton = QtWidgets.QPushButton(self)
+        AddConditionButton.setText("增加條件")
+        AddConditionButton.clicked.connect(self.addMoreWidget)
+
+        AndOr = QtWidgets.QComboBox(self)
+        AndOr.addItems(["and","or"])
+        AndOr.setDisabled(True)
+        self.AndOr.append(AndOr)
+
+        LabelColor = ColorSelectComboBox(self,self.ConditionWin.MainWin.ColorList)
+        self.LabelColor.append(LabelColor)
+
+        if not hasattr(self,"Layout"):
+            self.Layout = QtWidgets.QGridLayout(self)
+        self.Layout.addWidget(MetricsOption1,self.RowNo,0,1,1)
+        self.Layout.addWidget(DayOffset1,self.RowNo,1,1,1)
+        self.Layout.addWidget(MetricsCondition1,self.RowNo,2,1,1)
+        self.Layout.addWidget(Condition,self.RowNo,3,1,1)        
+        self.Layout.addWidget(MetricsOption2,self.RowNo,4,1,1)
+        self.Layout.addWidget(DayOffset2,self.RowNo,5,1,1)        
+        self.Layout.addWidget(MetricsCondition2,self.RowNo,6,1,1)
+        self.Layout.addWidget(LabelColor,self.RowNo,7,1,1)
+        self.Layout.addWidget(AddConditionButton,self.RowNo+1,0,1,1)
+        self.Layout.addWidget(AndOr,self.RowNo+1,1,1,1)
         
         self.setLayout(self.Layout)
+    
+    def addMoreWidget(self):
+        self.RowNo = self.RowNo+2
+        self.AndOr[-1].setEnabled(True)
+        self.addWidgets() 
 
-    def changeMetricCondition(self,idx,txt):
+    def changeMetricCondition(self,idx,txt,ind):
+        ind = int(ind/2)
         match idx:
             case 1:
                 if txt == "日線":
-                    self.MetricsCondition1.setEnabled(True)
+                    self.MetricsCondition1[ind].setEnabled(True)
+                    self.DayOffset1[ind].setEnabled(True)
                 else:
-                    self.MetricsCondition1.setDisabled(True)
+                    self.MetricsCondition1[ind].setDisabled(True)
+                    self.DayOffset1[ind].setEnabled(False)
             case 2:
                 if txt == "日線":
-                    self.MetricsCondition2.setEnabled(True)
+                    self.MetricsCondition2[ind].setEnabled(True)
+                    self.DayOffset2[ind].setEnabled(True)
                 else:
-                    self.MetricsCondition2.setDisabled(True)
+                    self.MetricsCondition2[ind].setDisabled(True)
+                    self.DayOffset2[ind].setEnabled(False)
             case _:
                 pass
 
@@ -364,60 +426,156 @@ class ConditionGroup(QtWidgets.QGroupBox):
         self.MainWin = parent
         self.setTitle("條件分析")
 
-        self.ConditionList = list()
-        self.Condition1 = Condition(self)
-        self.ConditionList.append(self.Condition1)
+        self.ConditionIn = Condition(self,"進場條件")
+        self.ConditionOut = Condition(self,"出場條件")
         
         self.AnalyzeButton = QtWidgets.QPushButton(self)
         self.AnalyzeButton.setText("標示區間")
-        self.AnalyzeButton.clicked.connect(self.pickDataPoint)
+        self.AnalyzeButton.clicked.connect(self.getRange)
 
+        """
         self.PMLabel = QtWidgets.QLabel(parent = self, text = "標記+/-")
         self.DaysLabel = QtWidgets.QLabel(parent = self, text = "天")
         self.DaySpinBox = QtWidgets.QSpinBox(self)
         self.DaySpinBox.setValue(5)
         self.DaySpinBox.setMinimum(0)
         self.DaySpinBox.setMaximum(30)
+        """
+        self.TableOutput = QtWidgets.QPushButton(self)
+        self.TableOutput.setText("生成報表")
+        self.TableOutput.clicked.connect(self.outputTable)
+        self.TableOutput.setDisabled(True)
 
         self.Layout = QtWidgets.QGridLayout(self)
-        self.Layout.addWidget(self.Condition1,0,0,1,4)
-        self.Layout.addWidget(self.PMLabel,1,0,1,1)
-        self.Layout.addWidget(self.DaySpinBox,1,1,1,1)
-        self.Layout.addWidget(self.DaysLabel,1,2,1,1)
-        self.Layout.addWidget(self.AnalyzeButton,1,3,1,1)
+        self.Layout.addWidget(self.ConditionIn,0,0,1,4)
+        self.Layout.addWidget(self.ConditionOut,1,0,1,4)
+        self.Layout.addWidget(self.TableOutput,2,0,1,1)
+        """
+        self.Layout.addWidget(self.PMLabel,2,0,1,1)
+        self.Layout.addWidget(self.DaySpinBox,2,1,1,1)
+        self.Layout.addWidget(self.DaysLabel,2,2,1,1)
+        """
+        self.Layout.addWidget(self.AnalyzeButton,2,3,1,1)
 
         self.setLayout(self.Layout)
     
-    def pickDataPoint(self):
+    def outputTable(self):
+        DateList = list()
+        idxList = list()
+        BuyList = list()
+        SellList = list()
+        DiffList = list()
+        OpenData = self.MainWin.DataSource.PeriodData["Open"]
+        CloseData = self.MainWin.DataSource.PeriodData["Close"]
+        HighData = self.MainWin.DataSource.PeriodData["High"]
+        LowData = self.MainWin.DataSource.PeriodData["Low"]
+        Date = self.MainWin.Metric.getDate(HighData)
+        
+        for inPoint in self.InPoints[0]:
+            idxList.append(inPoint)
+            DateList.append(Date[inPoint])
+            BuyList.append(round(OpenData[inPoint],2))
+            for outPoints in self.OutPoints:
+                if inPoint in outPoints:
+                    SellList.append(round(LowData[inPoint-1],2))
+                else:
+                    SellList.append(round(CloseData[inPoint],2))
+            DiffList.append(round(SellList[-1]-BuyList[-1],2))
+        
+        for d,b,s,Diff in zip(DateList,BuyList,SellList,DiffList):
+            print(d,b,s,Diff)
+        
+        pyplot.plot(np.asarray(idxList),np.asarray(DiffList),"ro--")
+        pyplot.plot(np.asarray(idxList),np.zeros(len(idxList)))
+        pyplot.show()
+                    
+    def pickDataPoint(self,Obj,Status, ConditionPoints = None):
         Data1 = list()
         Data2 = list()
         Operator = list()
         Colors = list()
-        for Condition in self.ConditionList:
+        FoundPoints = list()
+
+        Conditions = list()
+
+        for idx in range(len(Obj.MetricsOption1)):
+            ThisCondition = dict()
+            ThisCondition["MetricsOption1"] = Obj.MetricsOption1[idx]
+            ThisCondition["MetricsCondition1"] = Obj.MetricsCondition1[idx]
+            ThisCondition["DayOffset1"] = Obj.DayOffset1[idx]
+            ThisCondition["MetricsOption2"] = Obj.MetricsOption2[idx]
+            ThisCondition["MetricsCondition2"] = Obj.MetricsCondition2[idx]
+            ThisCondition["DayOffset2"] = Obj.DayOffset2[idx]
+            ThisCondition["Operator"] = Obj.Operator[idx]
+            ThisCondition["Color"] = Obj.LabelColor[idx]
+            ThisCondition["AndOr"] = Obj.AndOr[idx]            
+            Conditions.append(ThisCondition)
+        
+        for Condition in Conditions:
             Option1 = None
             Option2 = None
-            Metric1 = Condition.MetricsOption1.currentText()
-            if Condition.MetricsCondition1.isEnabled():
-                Option1 = Condition.MetricsCondition1.currentText()
+            Metric1 = Condition["MetricsOption1"].currentText()
+            if Condition["MetricsCondition1"].isEnabled():
+                Option1 = Condition["MetricsCondition1"].currentText()
             else:
                 Metric1 = Metric1[-3:]
-            Metric2 = Condition.MetricsOption2.currentText()
-            if Condition.MetricsCondition2.isEnabled():
-                Option2 = Condition.MetricsCondition2.currentText()
+
+            if Condition["DayOffset1"].isEnabled():
+                Offset1 = Condition["DayOffset1"].value()
+            else:
+                Offset1 = None
+
+            Metric2 = Condition["MetricsOption2"].currentText()
+            if Condition["MetricsCondition2"].isEnabled():
+                Option2 = Condition["MetricsCondition2"].currentText()
             else:
                 Metric2 = Metric2[-3:]
-            Data1.append(self.getData(Metric1,Option1))
-            Data2.append(self.getData(Metric2,Option2))
-            Operator.append(Condition.Condition.currentText())
 
-            Colors.append(self.MainWin.ColorList[Condition.LabelColor.currentIndex()])
+            if Condition["DayOffset2"].isEnabled():
+                Offset2 = Condition["DayOffset2"].value()
+            else:
+                Offset2 = None
+
+            Datum1 = self.getData(Metric1,Option = Option1)
+            Datum2 = self.getData(Metric2,Option = Option2)
+            [Datum1,Datum2] = self.shiftData([Datum1,Datum2],[Offset1,Offset2])
+
+            Data1.append(Datum1)
+            Data2.append(Datum2)
+            Operator.append(Condition["Operator"].currentText())
+
+            Colors.append(self.MainWin.ColorList[Condition["Color"].currentIndex()])
+
+            ThisFoundPoints = self.compareData(Data1,Data2,Operator,Offset1+Offset2)
         
-            FoundPoints = self.compareData(Data1,Data2,Operator)
-        self.MainWin.sig_FoundPoints.emit([(fp,color) for fp, color in zip(FoundPoints,Colors)])
+            #AndOr = Condition["AndOr"]
+
+            if Status == "Out":
+                FoundPoints.append(list(set(ConditionPoints[0]).intersection(ThisFoundPoints)))
+            else:
+                FoundPoints.append(ThisFoundPoints)
+
+        self.MainWin.sig_FoundPoints.emit([(fp,color,Status) for fp, color in zip(FoundPoints,Colors)])
+
+        return FoundPoints
+
+    def getRange(self):
+        self.TableOutput.setDisabled(False)
+        self.InPoints = self.pickDataPoint(self.ConditionIn,"In")
+        self.OutPoints = self.pickDataPoint(self.ConditionOut,"Out", ConditionPoints = self.InPoints)
     
-    def compareData(self,Data1,Data2,Operator):
-        Points = list()
+    def shiftData(self,Data:list,Offset:list):
+        for idx,offset in enumerate(Offset):
+            if offset != 0:
+                for ind in [0,1]:
+                    Data[idx][ind] = Data[idx][ind][:offset]
+                    Data[1-idx][ind] = Data[1-idx][ind][-1*offset:]     
+        return Data
+    
+    def compareData(self,Data1,Data2,Operator,Offset):
+        
         for data1, data2, op in zip(Data1,Data2,Operator):
+            """
             d0 = max(data1[1][0],data2[1][0])
             if data1[1][0] == d0:
                 offset = np.where(data2[1]==d0)[0][0]
@@ -427,14 +585,21 @@ class ConditionGroup(QtWidgets.QGroupBox):
                 offset = np.where(data1[1]==d0)[0][0]
                 data1[0] = data1[0][offset:]
                 data1[1] = data1[1][offset:]
+            """
             if op == ">":
                 ShiftData = data1[0] - data2[0]
+
             else:
                 ShiftData = data2[0] - data1[0]
-            data = np.multiply(np.insert(ShiftData,0,0),np.append(ShiftData,0))
-            points = np.where(data < 0)[0]
-            CrossPosition = self.calcCrossPoint(points,data1,data2)
-            Points.append([pnt[1] for pnt in CrossPosition if pnt[0] < data1[1].shape[0] and ShiftData[pnt[0]] > 0])
+            points = np.where(ShiftData > 0)[0]
+            """Get crossover"""
+            #data = np.multiply(np.insert(ShiftData,0,0),np.append(ShiftData,0))
+            #points = np.where(data < 0)[0]            
+            """"""
+            #CrossPosition = self.calcCrossPoint(points,data1,data2)
+            #Points.append([pnt[1] for pnt in CrossPosition if pnt[0] < data1[1].shape[0] and ShiftData[pnt[0]] > 0])
+            Points = [pnt-Offset for pnt in points.tolist() if pnt < data1[1].shape[0]]
+
         return Points
 
     def calcCrossPoint(self,points,data1,data2):
@@ -469,6 +634,7 @@ class ConditionGroup(QtWidgets.QGroupBox):
                     case _:
                         pass
                 Data = [Data.values,DateSN]
+
             case "日均線":
                 Data = self.MainWin.Metric.RollingAvg
             case "RSI":
@@ -484,7 +650,7 @@ class MainWin(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("王家肉燥飯")
+        self.setWindowTitle("王富寬肉燥飯")
         self.ColorList = ["red","blue","green","white","purple","cyan","orange"]
         self.MetricList = ["日線","日均線","RSI"]
 
