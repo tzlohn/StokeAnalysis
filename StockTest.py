@@ -2,7 +2,7 @@ import yfinance as yf
 import numpy as np
 from PyQt5 import QtCore,QtWidgets,QtGui
 from  matplotlib import pyplot as plt
-import sys
+import sys,csv
 import CrossHairCursor as CHC
 import operator
 from matplotlib import pyplot
@@ -430,8 +430,11 @@ class ConditionGroup(QtWidgets.QGroupBox):
         self.ConditionOut = Condition(self,"出場條件")
         
         self.AnalyzeButton = QtWidgets.QPushButton(self)
-        self.AnalyzeButton.setText("標示區間")
+        self.AnalyzeButton.setText("搜尋標的")
         self.AnalyzeButton.clicked.connect(self.getRange)
+
+        self.LabelBox = QtWidgets.QCheckBox(self)
+        self.LabelBox.setText("顯示於圖上")
 
         """
         self.PMLabel = QtWidgets.QLabel(parent = self, text = "標記+/-")
@@ -450,16 +453,21 @@ class ConditionGroup(QtWidgets.QGroupBox):
         self.Layout.addWidget(self.ConditionIn,0,0,1,4)
         self.Layout.addWidget(self.ConditionOut,1,0,1,4)
         self.Layout.addWidget(self.TableOutput,2,0,1,1)
+        self.Layout.addWidget(self.LabelBox,2,3,1,1)
         """
         self.Layout.addWidget(self.PMLabel,2,0,1,1)
         self.Layout.addWidget(self.DaySpinBox,2,1,1,1)
         self.Layout.addWidget(self.DaysLabel,2,2,1,1)
         """
-        self.Layout.addWidget(self.AnalyzeButton,2,3,1,1)
+        self.Layout.addWidget(self.AnalyzeButton,2,2,1,1)
 
         self.setLayout(self.Layout)
     
     def outputTable(self):
+
+        PathDir = QtWidgets.QFileDialog.getExistingDirectory(self,"選擇資料夾")
+        PathDir = PathDir + "/"
+
         DateList = list()
         idxList = list()
         BuyList = list()
@@ -482,12 +490,19 @@ class ConditionGroup(QtWidgets.QGroupBox):
                     SellList.append(round(CloseData[inPoint],2))
             DiffList.append(round(SellList[-1]-BuyList[-1],2))
         
-        for d,b,s,Diff in zip(DateList,BuyList,SellList,DiffList):
-            print(d,b,s,Diff)
-        
-        pyplot.plot(np.asarray(idxList),np.asarray(DiffList),"ro--")
-        pyplot.plot(np.asarray(idxList),np.zeros(len(idxList)))
-        pyplot.show()
+        with open(PathDir+"報表.csv","w+") as csvFile:
+            FieldNames = ["日期","買入","賣出","差價"]
+            writer = csv.DictWriter(csvFile, fieldnames=FieldNames)
+
+            writer.writeheader()
+            for d,b,s,Diff in zip(DateList,BuyList,SellList,DiffList):
+                writer.writerow({'日期': d, '買入': b, '賣出': s, '差價': Diff})
+
+        #for d,b,s,Diff in zip(DateList,BuyList,SellList,DiffList):
+        #    print(d,b,s,Diff)
+        #pyplot.plot(np.asarray(idxList),np.asarray(DiffList),"ro--")
+        #pyplot.plot(np.asarray(idxList),np.zeros(len(idxList)))
+        #pyplot.show()
                     
     def pickDataPoint(self,Obj,Status, ConditionPoints = None):
         Data1 = list()
@@ -511,6 +526,8 @@ class ConditionGroup(QtWidgets.QGroupBox):
             ThisCondition["AndOr"] = Obj.AndOr[idx]            
             Conditions.append(ThisCondition)
         
+        AndOrList = list()
+
         for Condition in Conditions:
             Option1 = None
             Option2 = None
@@ -548,16 +565,39 @@ class ConditionGroup(QtWidgets.QGroupBox):
 
             ThisFoundPoints = self.compareData(Data1,Data2,Operator,Offset1+Offset2)
         
-            #AndOr = Condition["AndOr"]
+            if Condition["AndOr"].isEnabled():
+                AndOrList.append(Condition["AndOr"].currentText())
 
             if Status == "Out":
                 FoundPoints.append(list(set(ConditionPoints[0]).intersection(ThisFoundPoints)))
             else:
                 FoundPoints.append(ThisFoundPoints)
-
-        self.MainWin.sig_FoundPoints.emit([(fp,color,Status) for fp, color in zip(FoundPoints,Colors)])
+            
+        if len(Conditions) > 1:
+            FoundPoints = self.mergeConditions(FoundPoints,AndOrList)
+        
+        if self.LabelBox.isChecked():
+            self.MainWin.sig_FoundPoints.emit([(fp,color,Status) for fp, color in zip(FoundPoints,Colors)])
 
         return FoundPoints
+    
+    def mergeConditions(self,FoundPoints,AndOrList):
+        OutputPoints = list()
+        for idx,andor in enumerate(AndOrList):
+            fp1 = FoundPoints[idx]
+            match andor:
+                case "and":
+                    fp2 = FoundPoints[idx+1]
+                    OutputPoints.append(list(set(fp1).intersection(fp2)))
+                case "or":
+                    OutputPoints.append(fp1)
+                case _:
+                    pass
+        
+        if andor == "or":
+            OutputPoints.append(FoundPoints[idx+1])
+
+        return OutputPoints            
 
     def getRange(self):
         self.TableOutput.setDisabled(False)
