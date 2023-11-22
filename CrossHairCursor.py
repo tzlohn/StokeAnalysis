@@ -91,7 +91,6 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
     def plotBoxChart(self,data,x_axis):
         #print(x_axis)
         self.PlotWidget.setXRange(0,len(data))
-        self.PlotWidget.show()
         IndexData = np.arange(len(data))
         bargraph = [QtCore.QRectF() for d in data]
         #bargraph = [pg.BarGraphItem(x = IndexData[idx], height = [abs(d[1]-d[0])], width = 0.6, brush ='r' if (d[1]-d[0])>0 else 'g') for idx,d in enumerate(data)]
@@ -109,7 +108,7 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
             bar.setLeft(idx-0.3)
             Rect = QtWidgets.QGraphicsRectItem(bar)
 
-            if data[1] > data[0]:
+            if data[1] < data[0]:
                 PenColor = QtCore.Qt.red   
             else:
                 PenColor = QtCore.Qt.green
@@ -127,18 +126,19 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
         Axis.setTicks([[(value,name) for value,name in zip(list(IndexData),x_axis)]])
     
     def plot(self,data,x_axis,QColor):
-        self.PlotWidget.show()
-        self.PlotWidget.plotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine})
-    
+        if not hasattr(self,"ThisPlot"):
+            self.ThisPlot = list()   
+        self.ThisPlot.append(self.PlotWidget.plotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}))
+
     def plotZone(self,Pos,range,color,LineThick):
         if range == 0:
-            Lines = list()
+            self.Lines = list()
             for pos in Pos:
                 line = pg.InfiniteLine(angle=90)
                 line.setPen(QtGui.QPen(QtGui.QColor(color),LineThick,QtCore.Qt.DotLine))
                 self.PlotWidget.addItem(line, ignoreBounds=True)
                 line.setPos(pos)
-                Lines.append(line)
+                self.Lines.append(line)
        
 if __name__ == '__main__':
     # Create main application window

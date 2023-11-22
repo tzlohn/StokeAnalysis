@@ -244,12 +244,19 @@ class MetricGroup(QtWidgets.QGroupBox):
 
         self.setLayout(self.Layout)
         self.CrossHairPlot = CHC.CrosshairPlotWidget(parent = self, title = "本和里發財燒臘")
+        self.isBoxChartPlotted = False
 
     def plotCurves(self):
-        
-        if self.DayBoxCB.isChecked():
+        self.CrossHairPlot.PlotWidget.show()
+
+        if self.DayBoxCB.isChecked() and not self.isBoxChartPlotted:
             self.CrossHairPlot.plotBoxChart(self.PackedRaw,self.Date)
+            self.isBoxChartPlotted = True
         
+        if hasattr(self.CrossHairPlot,"ThisPlot"):
+            for item in self.CrossHairPlot.ThisPlot:
+                self.CrossHairPlot.PlotWidget.plotItem.removeItem(item)            
+
         if self.DayLineCB.isChecked():
             Option = self.DayLineOpt.currentIndex()
             self.RawData = self.MainWin.DataSource.PeriodData[self.OptionDict[Option]]
@@ -305,6 +312,10 @@ class MetricGroup(QtWidgets.QGroupBox):
     
     QtCore.pyqtSlot(list)
     def plotBlocks(self,FoundPoints):
+        if hasattr(self.CrossHairPlot,"Lines"):
+            for item in self.CrossHairPlot.Lines:
+                self.CrossHairPlot.PlotWidget.plotItem.removeItem(item)
+
         for points in FoundPoints:
             match points[2]:
                 case "In":
@@ -626,12 +637,19 @@ class ConditionGroup(QtWidgets.QGroupBox):
                 data1[0] = data1[0][offset:]
                 data1[1] = data1[1][offset:]
             """
-            if op == ">":
-                ShiftData = data1[0] - data2[0]
-
-            else:
-                ShiftData = data2[0] - data1[0]
-            points = np.where(ShiftData > 0)[0]
+            match op:
+                case ">":
+                    ShiftData = data1[0] - data2[0]
+                    points = np.where(ShiftData > 0)[0]
+                case "<":
+                    ShiftData = data2[0] - data1[0]
+                    points = np.where(ShiftData > 0)[0]
+                case "=":
+                    ShiftData = data2[0] - data1[0]
+                    points = np.where(ShiftData == 0)[0]
+                case _:
+                    pass
+            
             """Get crossover"""
             #data = np.multiply(np.insert(ShiftData,0,0),np.append(ShiftData,0))
             #points = np.where(data < 0)[0]            
@@ -711,3 +729,11 @@ if __name__ == "__main__":
     win = MainWin()
     win.show()
     sys.exit(app.exec_())
+
+    #Saya Fujiwara
+    #Kuru Shichisei
+    #Rina Nanase
+    #Mimi
+    #Suzu Ichinose
+    #kawd00793
+    #Yui Oba
