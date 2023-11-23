@@ -612,9 +612,9 @@ class ConditionGroup(QtWidgets.QGroupBox):
             for pnt in points:
                 match InOut:
                     case "In":
-                        value = min(D1[pnt-Off1],D2[pnt-Off2])
+                        value = min(D1[pnt-Off1-1],D2[pnt-Off2-1])
                     case "Out":
-                        value = max(D1[pnt-Off1],D2[pnt-Off2])
+                        value = max(D1[pnt-Off1-1],D2[pnt-Off2-1])
                     case _:
                         pass
                 Price.append([pnt,value])
