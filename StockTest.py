@@ -477,46 +477,50 @@ class ConditionGroup(QtWidgets.QGroupBox):
     def outputTable(self):
 
         PathDir = QtWidgets.QFileDialog.getExistingDirectory(self,"選擇資料夾")
-        PathDir = PathDir + "/"
-
-        DateList = list()
-        idxList = list()
-        BuyList = list()
-        SellList = list()
-        DiffList = list()
-        OpenData = self.MainWin.DataSource.PeriodData["Open"]
-        CloseData = self.MainWin.DataSource.PeriodData["Close"]
+        PathDir = PathDir + "/"+"報表.csv"
+        
+        #OpenData = self.MainWin.DataSource.PeriodData["Open"]
+        #CloseData = self.MainWin.DataSource.PeriodData["Close"]
         HighData = self.MainWin.DataSource.PeriodData["High"]
-        LowData = self.MainWin.DataSource.PeriodData["Low"]
+        #LowData = self.MainWin.DataSource.PeriodData["Low"]
         Date = self.MainWin.Metric.getDate(HighData)
-        
-        for inPoint in self.InPoints[0]:
-            idxList.append(inPoint)
-            DateList.append(Date[inPoint])
-            BuyList.append(round(OpenData[inPoint],2))
-            for outPoints in self.OutPoints:
-                if inPoint in outPoints:
-                    print(outPoints,self.OutPoints)
-                    SellList.append(round(LowData[inPoint-1],2))
-                else:
-                    print("here")
-                    SellList.append(round(CloseData[inPoint],2))
-            DiffList.append(round(SellList[-1]-BuyList[-1],2))
-        
-        with open(PathDir+"報表.csv","w+") as csvFile:
+        BuyDict = self.dictPrice(self.BuyPrice)
+        SellDict = self.dictPrice(self.SellPrice)
+        TableList = list()
+        for d in BuyDict:
+            OutDict = dict()
+            OutDict["日期"] = Date[d]
+            OutDict["買入"] = round(BuyDict[d],2)
+            OutDict["賣出"] = round(SellDict[d],2)
+            OutDict["差價"] = round(SellDict[d]-BuyDict[d],2)
+            TableList.append(OutDict)
+
+        with open(PathDir,"w+") as csvFile:
             FieldNames = ["日期","買入","賣出","差價"]
             writer = csv.DictWriter(csvFile, fieldnames=FieldNames)
 
             writer.writeheader()
+            for aDict in TableList:
+                print(aDict)
+                writer.writerow(aDict)    
+            """
             for d,b,s,Diff in zip(DateList,BuyList,SellList,DiffList):
                 writer.writerow({'日期': d, '買入': b, '賣出': s, '差價': Diff})
-
+            """
         #for d,b,s,Diff in zip(DateList,BuyList,SellList,DiffList):
         #    print(d,b,s,Diff)
         #pyplot.plot(np.asarray(idxList),np.asarray(DiffList),"ro--")
         #pyplot.plot(np.asarray(idxList),np.zeros(len(idxList)))
         #pyplot.show()
-                    
+    
+    def dictPrice(self,PriceList):
+        PriceDict = dict()
+        for APrice in PriceList:
+            for aPoint in APrice:
+                PriceDict[aPoint[0]] = aPoint[1]
+        
+        return PriceDict
+    
     def pickDataPoint(self,Obj,Status, ConditionPoints = None):
         Colors = list()
         FoundPoints = list()
@@ -590,28 +594,32 @@ class ConditionGroup(QtWidgets.QGroupBox):
         if self.LabelBox.isChecked():
             self.MainWin.sig_FoundPoints.emit([(fp,color,Status) for fp, color in zip(FoundPoints,Colors)])
 
-        return FoundPoints
+        Price = self.getPrice(FoundPoints,{"Datum1":Datum1,"Offset1":Offset1,"Datum2":Datum2,"Offset2":Offset2,"In/Out":Status})
+
+        return [Price,FoundPoints]
     
     def getPrice(self,FoundPoints,Condition):
         #Condition: {"Datum1":,"Offset1":"","Datum2":,"Offset2":,"In/Out":}
-        #For In: take the lower price, for Out: take the higher price
-        Price = list()
-        D1 = Condition["Datum1"]
-        D2 = Condition["Datum2"]
+        #For In: take the lower price, for Out: take the higher price       
+        D1 = Condition["Datum1"][0]
+        D2 = Condition["Datum2"][0]
         Off1 = Condition["Offset1"]
         Off2 = Condition["Offset2"]
         InOut = Condition["In/Out"]
-
-        for pnt in FoundPoints:
-            match InOut:
-                case "In":
-                    value = min(D1[pnt-Off1],D2[pnt-Off2])
-                case "Out":
-                    value = max(D1[pnt-Off1],D2[pnt-Off2])
-                case _:
-                    pass
-            Price.append([pnt,value])
-        return Price
+        AllPrice = list()
+        for points in FoundPoints:
+            Price = list()
+            for pnt in points:
+                match InOut:
+                    case "In":
+                        value = min(D1[pnt-Off1],D2[pnt-Off2])
+                    case "Out":
+                        value = max(D1[pnt-Off1],D2[pnt-Off2])
+                    case _:
+                        pass
+                Price.append([pnt,value])
+            AllPrice.append(Price)
+        return AllPrice
     
     def mergeConditions(self,FoundPoints,AndOrList):
         # merge the found points depends on selected and/or
@@ -638,11 +646,11 @@ class ConditionGroup(QtWidgets.QGroupBox):
 
     def getRange(self):
         self.TableOutput.setDisabled(False)
-        self.InPoints = self.pickDataPoint(self.ConditionIn,"In")
-        self.OutPoints = self.pickDataPoint(self.ConditionOut,"Out", ConditionPoints = self.InPoints)
+        [self.BuyPrice,InPoints] = self.pickDataPoint(self.ConditionIn,"In")
+        [self.SellPrice,OutPoints] = self.pickDataPoint(self.ConditionOut,"Out", ConditionPoints = InPoints)
 
-        print(self.InPoints)
-        print(self.OutPoints)
+        #print(self.InPoints)
+        #print(self.OutPoints)
     
     def shiftData(self,Data:list,Offset:list):
         for idx,offset in enumerate(Offset):
