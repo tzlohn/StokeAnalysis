@@ -487,13 +487,16 @@ class ConditionGroup(QtWidgets.QGroupBox):
         BuyDict = self.dictPrice(self.BuyPrice)
         SellDict = self.dictPrice(self.SellPrice)
         TableList = list()
+        UsedList = list()
         for d in BuyDict:
             OutDict = dict()
             OutDict["日期"] = Date[d]
             OutDict["買入"] = round(BuyDict[d],2)
-            OutDict["賣出"] = round(SellDict[d],2)
-            OutDict["差價"] = round(SellDict[d]-BuyDict[d],2)
+            if not d in UsedList:
+                OutDict["賣出"] = round(SellDict[d],2)
+                OutDict["差價"] = round(SellDict[d]-BuyDict[d],2)
             TableList.append(OutDict)
+            UsedList.append(d)
 
         with open(PathDir,"w+") as csvFile:
             FieldNames = ["日期","買入","賣出","差價"]
@@ -524,6 +527,7 @@ class ConditionGroup(QtWidgets.QGroupBox):
     def pickDataPoint(self,Obj,Status, ConditionPoints = None):
         Colors = list()
         FoundPoints = list()
+        PriceList = list()
 
         Conditions = list()
 
@@ -587,6 +591,11 @@ class ConditionGroup(QtWidgets.QGroupBox):
                 FoundPoints.append(points)
             else:
                 FoundPoints.append(ThisFoundPoints)
+
+            print(self.getPrice(FoundPoints,{"Datum1":Datum1,"Offset1":Offset1,"Datum2":Datum2,"Offset2":Offset2,"In/Out":Status}))
+            print("///")
+
+            PriceList.append(self.getPrice(FoundPoints,{"Datum1":Datum1,"Offset1":Offset1,"Datum2":Datum2,"Offset2":Offset2,"In/Out":Status}))
             
         if len(Conditions) > 1:
             FoundPoints = self.mergeConditions(FoundPoints,AndOrList)
@@ -594,7 +603,10 @@ class ConditionGroup(QtWidgets.QGroupBox):
         if self.LabelBox.isChecked():
             self.MainWin.sig_FoundPoints.emit([(fp,color,Status) for fp, color in zip(FoundPoints,Colors)])
 
-        Price = self.getPrice(FoundPoints,{"Datum1":Datum1,"Offset1":Offset1,"Datum2":Datum2,"Offset2":Offset2,"In/Out":Status})
+        Price = [n for m in PriceList for n in m]
+        print(PriceList)
+        print(Price)
+        print("***")
 
         return [Price,FoundPoints]
     
@@ -625,6 +637,7 @@ class ConditionGroup(QtWidgets.QGroupBox):
         # merge the found points depends on selected and/or
         # exclusive "or": the second list will exclude what already existing in the first list
         OutputPoints = list()
+        ConditionIdx = list()
         for idx,andor in enumerate(AndOrList):
             fp1 = FoundPoints[idx]
             match andor:
