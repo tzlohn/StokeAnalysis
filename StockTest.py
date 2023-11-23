@@ -496,8 +496,10 @@ class ConditionGroup(QtWidgets.QGroupBox):
             BuyList.append(round(OpenData[inPoint],2))
             for outPoints in self.OutPoints:
                 if inPoint in outPoints:
+                    print(outPoints,self.OutPoints)
                     SellList.append(round(LowData[inPoint-1],2))
                 else:
+                    print("here")
                     SellList.append(round(CloseData[inPoint],2))
             DiffList.append(round(SellList[-1]-BuyList[-1],2))
         
@@ -516,9 +518,6 @@ class ConditionGroup(QtWidgets.QGroupBox):
         #pyplot.show()
                     
     def pickDataPoint(self,Obj,Status, ConditionPoints = None):
-        Data1 = list()
-        Data2 = list()
-        Operator = list()
         Colors = list()
         FoundPoints = list()
 
@@ -566,11 +565,11 @@ class ConditionGroup(QtWidgets.QGroupBox):
 
             Datum1 = self.getData(Metric1,Option = Option1)
             Datum2 = self.getData(Metric2,Option = Option2)
-            [Datum1,Datum2] = self.shiftData([Datum1,Datum2],[Offset1,Offset2])
+            [Data1,Data2] = self.shiftData([Datum1,Datum2],[Offset1,Offset2])
 
-            Data1.append(Datum1)
-            Data2.append(Datum2)
-            Operator.append(Condition["Operator"].currentText())
+            #Data1.append(Datum1)
+            #Data2.append(Datum2)
+            Operator = Condition["Operator"].currentText()
 
             Colors.append(self.MainWin.ColorList[Condition["Color"].currentIndex()])
 
@@ -580,7 +579,8 @@ class ConditionGroup(QtWidgets.QGroupBox):
                 AndOrList.append(Condition["AndOr"].currentText())
 
             if Status == "Out":
-                FoundPoints.append(list(set(ConditionPoints[0]).intersection(ThisFoundPoints)))
+                points = list(set(ConditionPoints[0]).intersection(ThisFoundPoints))
+                FoundPoints.append(points)
             else:
                 FoundPoints.append(ThisFoundPoints)
             
@@ -592,7 +592,30 @@ class ConditionGroup(QtWidgets.QGroupBox):
 
         return FoundPoints
     
+    def getPrice(self,FoundPoints,Condition):
+        #Condition: {"Datum1":,"Offset1":"","Datum2":,"Offset2":,"In/Out":}
+        #For In: take the lower price, for Out: take the higher price
+        Price = list()
+        D1 = Condition["Datum1"]
+        D2 = Condition["Datum2"]
+        Off1 = Condition["Offset1"]
+        Off2 = Condition["Offset2"]
+        InOut = Condition["In/Out"]
+
+        for pnt in FoundPoints:
+            match InOut:
+                case "In":
+                    value = min(D1[pnt-Off1],D2[pnt-Off2])
+                case "Out":
+                    value = max(D1[pnt-Off1],D2[pnt-Off2])
+                case _:
+                    pass
+            Price.append([pnt,value])
+        return Price
+    
     def mergeConditions(self,FoundPoints,AndOrList):
+        # merge the found points depends on selected and/or
+        # exclusive "or": the second list will exclude what already existing in the first list
         OutputPoints = list()
         for idx,andor in enumerate(AndOrList):
             fp1 = FoundPoints[idx]
@@ -601,12 +624,15 @@ class ConditionGroup(QtWidgets.QGroupBox):
                     fp2 = FoundPoints[idx+1]
                     OutputPoints.append(list(set(fp1).intersection(fp2)))
                 case "or":
-                    OutputPoints.append(fp1)
+                    if idx == 0:
+                        OutputPoints.append(fp1)
+                    else:    
+                        OutputPoints.append([pnt for pnt in fp1 if pnt not in OutputPoints[-1]])
                 case _:
                     pass
         
         if andor == "or":
-            OutputPoints.append(FoundPoints[idx+1])
+            OutputPoints.append([pnt for pnt in FoundPoints[-1] if pnt not in OutputPoints[-1]])
 
         return OutputPoints            
 
@@ -614,6 +640,9 @@ class ConditionGroup(QtWidgets.QGroupBox):
         self.TableOutput.setDisabled(False)
         self.InPoints = self.pickDataPoint(self.ConditionIn,"In")
         self.OutPoints = self.pickDataPoint(self.ConditionOut,"Out", ConditionPoints = self.InPoints)
+
+        print(self.InPoints)
+        print(self.OutPoints)
     
     def shiftData(self,Data:list,Offset:list):
         for idx,offset in enumerate(Offset):
@@ -623,40 +652,40 @@ class ConditionGroup(QtWidgets.QGroupBox):
                     Data[1-idx][ind] = Data[1-idx][ind][-1*offset:]     
         return Data
     
-    def compareData(self,Data1,Data2,Operator,Offset):
+    def compareData(self,data1,data2,op,Offset):
         
-        for data1, data2, op in zip(Data1,Data2,Operator):
-            """
-            d0 = max(data1[1][0],data2[1][0])
-            if data1[1][0] == d0:
-                offset = np.where(data2[1]==d0)[0][0]
-                data2[0] = data2[0][offset:]
-                data2[1] = data2[1][offset:]
-            else:
-                offset = np.where(data1[1]==d0)[0][0]
-                data1[0] = data1[0][offset:]
-                data1[1] = data1[1][offset:]
-            """
-            match op:
-                case ">":
-                    ShiftData = data1[0] - data2[0]
-                    points = np.where(ShiftData > 0)[0]
-                case "<":
-                    ShiftData = data2[0] - data1[0]
-                    points = np.where(ShiftData > 0)[0]
-                case "=":
-                    ShiftData = data2[0] - data1[0]
-                    points = np.where(ShiftData == 0)[0]
-                case _:
-                    pass
-            
-            """Get crossover"""
-            #data = np.multiply(np.insert(ShiftData,0,0),np.append(ShiftData,0))
-            #points = np.where(data < 0)[0]            
-            """"""
-            #CrossPosition = self.calcCrossPoint(points,data1,data2)
-            #Points.append([pnt[1] for pnt in CrossPosition if pnt[0] < data1[1].shape[0] and ShiftData[pnt[0]] > 0])
-            Points = [pnt-Offset for pnt in points.tolist() if pnt < data1[1].shape[0]]
+
+        """
+        d0 = max(data1[1][0],data2[1][0])
+        if data1[1][0] == d0:
+            offset = np.where(data2[1]==d0)[0][0]
+            data2[0] = data2[0][offset:]
+            data2[1] = data2[1][offset:]
+        else:
+            offset = np.where(data1[1]==d0)[0][0]
+            data1[0] = data1[0][offset:]
+            data1[1] = data1[1][offset:]
+        """
+        match op:
+            case ">":
+                ShiftData = data1[0] - data2[0]
+                points = np.where(ShiftData > 0)[0]
+            case "<":
+                ShiftData = data2[0] - data1[0]
+                points = np.where(ShiftData > 0)[0]
+            case "=":
+                ShiftData = data2[0] - data1[0]
+                points = np.where(ShiftData == 0)[0]
+            case _:
+                pass
+
+        """Get crossover"""
+        #data = np.multiply(np.insert(ShiftData,0,0),np.append(ShiftData,0))
+        #points = np.where(data < 0)[0]            
+        """"""
+        #CrossPosition = self.calcCrossPoint(points,data1,data2)
+        #Points.append([pnt[1] for pnt in CrossPosition if pnt[0] < data1[1].shape[0] and ShiftData[pnt[0]] > 0])
+        Points = [pnt-Offset for pnt in points.tolist() if pnt < data1[1].shape[0]]
 
         return Points
 
@@ -708,7 +737,7 @@ class MainWin(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("王富寬肉燥飯")
+        self.setWindowTitle("富寬肉燥飯")
         self.ColorList = ["red","blue","green","white","purple","cyan","orange"]
         self.MetricList = ["日線","日均線","RSI"]
 
