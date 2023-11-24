@@ -384,7 +384,7 @@ class Condition(QtWidgets.QGroupBox):
         AddConditionButton.clicked.connect(self.addMoreWidget)
 
         AndOr = QtWidgets.QComboBox(self)
-        AndOr.addItems(["and","or"])
+        AndOr.addItems(["or","and"])
         AndOr.setDisabled(True)
         self.AndOr.append(AndOr)
 
@@ -487,16 +487,14 @@ class ConditionGroup(QtWidgets.QGroupBox):
         BuyDict = self.dictPrice(self.BuyPrice)
         SellDict = self.dictPrice(self.SellPrice)
         TableList = list()
-        UsedList = list()
+        
         for d in BuyDict:
             OutDict = dict()
             OutDict["日期"] = Date[d]
             OutDict["買入"] = round(BuyDict[d],2)
-            if not d in UsedList:
-                OutDict["賣出"] = round(SellDict[d],2)
-                OutDict["差價"] = round(SellDict[d]-BuyDict[d],2)
+            OutDict["賣出"] = round(SellDict[d],2)
+            OutDict["差價"] = round(SellDict[d]-BuyDict[d],2)
             TableList.append(OutDict)
-            UsedList.append(d)
 
         with open(PathDir,"w+") as csvFile:
             FieldNames = ["日期","買入","賣出","差價"]
@@ -518,9 +516,12 @@ class ConditionGroup(QtWidgets.QGroupBox):
     
     def dictPrice(self,PriceList):
         PriceDict = dict()
+        UsedPoint = list()
         for APrice in PriceList:
             for aPoint in APrice:
-                PriceDict[aPoint[0]] = aPoint[1]
+                if aPoint[0] not in UsedPoint:
+                    PriceDict[aPoint[0]] = aPoint[1]
+                    UsedPoint.append(aPoint[0])
         
         return PriceDict
     
@@ -572,11 +573,12 @@ class ConditionGroup(QtWidgets.QGroupBox):
                 Offset2 = None
 
             Datum1 = self.getData(Metric1,Option = Option1)
+            OriData1 = Datum1.copy()
             Datum2 = self.getData(Metric2,Option = Option2)
+            OriData2 = Datum2.copy()
             [Data1,Data2] = self.shiftData([Datum1,Datum2],[Offset1,Offset2])
-
-            #Data1.append(Datum1)
-            #Data2.append(Datum2)
+            #print(OriData1)
+            #print(OriData2)
             Operator = Condition["Operator"].currentText()
 
             Colors.append(self.MainWin.ColorList[Condition["Color"].currentIndex()])
@@ -592,10 +594,7 @@ class ConditionGroup(QtWidgets.QGroupBox):
             else:
                 FoundPoints.append(ThisFoundPoints)
 
-            print(self.getPrice(FoundPoints,{"Datum1":Datum1,"Offset1":Offset1,"Datum2":Datum2,"Offset2":Offset2,"In/Out":Status}))
-            print("///")
-
-            PriceList.append(self.getPrice(FoundPoints,{"Datum1":Datum1,"Offset1":Offset1,"Datum2":Datum2,"Offset2":Offset2,"In/Out":Status}))
+            PriceList.append(self.getPrice(FoundPoints,{"Datum1":OriData1,"Offset1":Offset1,"Datum2":OriData2,"Offset2":Offset2,"In/Out":Status}))
             
         if len(Conditions) > 1:
             FoundPoints = self.mergeConditions(FoundPoints,AndOrList)
@@ -604,9 +603,6 @@ class ConditionGroup(QtWidgets.QGroupBox):
             self.MainWin.sig_FoundPoints.emit([(fp,color,Status) for fp, color in zip(FoundPoints,Colors)])
 
         Price = [n for m in PriceList for n in m]
-        print(PriceList)
-        print(Price)
-        print("***")
 
         return [Price,FoundPoints]
     
@@ -614,19 +610,25 @@ class ConditionGroup(QtWidgets.QGroupBox):
         #Condition: {"Datum1":,"Offset1":"","Datum2":,"Offset2":,"In/Out":}
         #For In: take the lower price, for Out: take the higher price       
         D1 = Condition["Datum1"][0]
+        i1 = Condition["Datum1"][1]
         D2 = Condition["Datum2"][0]
+        i2 = Condition["Datum2"][1]
         Off1 = Condition["Offset1"]
         Off2 = Condition["Offset2"]
         InOut = Condition["In/Out"]
         AllPrice = list()
+
         for points in FoundPoints:
             Price = list()
             for pnt in points:
+                if pnt > len(D1) or pnt > len(D2):
+                    break
                 match InOut:
                     case "In":
-                        value = min(D1[pnt-Off1-1],D2[pnt-Off2-1])
+                        value = D1[pnt+Off1]
                     case "Out":
-                        value = max(D1[pnt-Off1-1],D2[pnt-Off2-1])
+                        #print(self.MainWin.Metric.Date[pnt+Off1],pnt-Off1,i1[pnt+Off1],D1[pnt+Off1],pnt+Off2,i2[pnt+Off2],D2[pnt+Off2])
+                        value = max(D1[pnt+Off1],D2[pnt+Off2])
                     case _:
                         pass
                 Price.append([pnt,value])
@@ -637,7 +639,6 @@ class ConditionGroup(QtWidgets.QGroupBox):
         # merge the found points depends on selected and/or
         # exclusive "or": the second list will exclude what already existing in the first list
         OutputPoints = list()
-        ConditionIdx = list()
         for idx,andor in enumerate(AndOrList):
             fp1 = FoundPoints[idx]
             match andor:
@@ -665,7 +666,8 @@ class ConditionGroup(QtWidgets.QGroupBox):
         #print(self.InPoints)
         #print(self.OutPoints)
     
-    def shiftData(self,Data:list,Offset:list):
+    def shiftData(self,data:list,Offset:list):
+        Data = data.copy()
         for idx,offset in enumerate(Offset):
             if offset != 0:
                 for ind in [0,1]:
