@@ -18,7 +18,7 @@ class DataSourceGroup(QtWidgets.QGroupBox):
 
         self.TickerLabel = QtWidgets.QLabel(parent = self,text = "代碼:")
         self.TickerBox = QtWidgets.QComboBox(self)
-        self.TickerBox.addItems(["0050.TW","2330.TW","^TWII"])
+        self.TickerBox.addItems(["0050.TW","2330.TW","^TWII","EURUSD=X","USDTWD=X","EURTWD=X"])
         self.TickerBox.currentIndexChanged.connect(self.getTicket)
         self.PeriodLabel = QtWidgets.QLabel(parent = self,text = "載入資料期間(從現在回朔):")
         self.DigitBox = QtWidgets.QSpinBox(self)
@@ -85,6 +85,7 @@ class DataSourceGroup(QtWidgets.QGroupBox):
         self.Unit = self.transferUnit()
         self.Period = str(self.DigitBox.value()) + self.Unit
         self.Data = self.Ticket.history(period = self.Period)
+        #print(self.Data)
     
     def resetPeriod(self):
         self.Unit = self.transferUnit()
