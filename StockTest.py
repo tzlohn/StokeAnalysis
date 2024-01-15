@@ -28,23 +28,61 @@ def getDataMx(Data,days:int):
     MxList = list()
     CloseList = list()
     MiddleList = list()
+    MiddleDiff = list()
 
     for idx,c in enumerate(Close):
-        CloseList.append(c)
-        MiddleList.append((High[idx]+Low[idx])/2)
+        try:
+            CloseList.append(Close[idx+1]-c)
+            today = (High[idx]+Low[idx])/2
+            MiddleList.append(today)
+            tomorrow = (High[idx+1]+Low[idx+1])/2
+            MiddleDiff.append(tomorrow-today)
+        except:
+            pass
     CloseData = np.flip(np.asarray(CloseList))
     MiddleData = np.flip(np.asarray(MiddleList))
 
     for idx in range(CloseData.shape[0]-days):
         ThisList = list()
-        for ind in range(days):
-            ThisList.append(MiddleData[idx+ind+1])
+        for ind in range(days-1):
+            ThisList.append(MiddleData[idx+1]-MiddleData[idx+1+ind+1])
         MxList.append(ThisList)
+
+    print(np.round(MiddleDiff,decimals=2))
+    for idx,v in enumerate(MiddleDiff):
+        try:
+            print(np.round(MxList[idx],decimals=2))
+        except:
+            pass
     
-    return np.asarray(MxList)
+    return [np.asarray(MxList),np.flip(np.asarray(MiddleDiff))]
 
 def getCovMx(Mx):
-    pass
+    one = np.ones(shape = (Mx.shape[0],Mx.shape[0]))
+    delta = Mx-np.dot(one,Mx)/Mx.shape[0]
+    CovMx =  np.dot(np.transpose(delta),delta)/Mx.shape[0]
+
+    return CovMx
+
+def getEigen(CovMx):
+    result = np.linalg.eig(CovMx)
+    #print(result)
+    #eigv = np.linalg.eigvals(CovMx)
+    #eigvec = np.linalg.eigh(CovMx)
+    #print(np.linalg.norm(result[1][0]))
+    #print(eigv)
+    return result[1]
+
+def getPCACoor(Data,Vec):
+    shape = Data.shape
+    NewCoor = list()
+    for count in range(shape[0]):
+        NewCoor.append(getNewCoor(Data[count],Vec))
+    
+    return np.asarray(NewCoor)
+
+def getNewCoor(Raw,Vec):
+    return np.dot(Raw,Vec)
     
 class MainWin(QtWidgets.QWidget):
     sig_FoundPoints = QtCore.pyqtSignal(list)
@@ -69,9 +107,19 @@ class MainWin(QtWidgets.QWidget):
         self.setLayout(self.Layout)
 
 if __name__ == "__main__":
+    RollingDays = 6
+
     Data = getTicket("^TWII","1y")
-    Matrix = getDataMx(Data,5)
-    print(Matrix)
+    [Matrix,Outcome] = getDataMx(Data,RollingDays)
+    CovMx = getCovMx(Matrix)
+    EigVec = getEigen(CovMx)
+
+    Coor1 = getPCACoor(Matrix,EigVec[0])
+    Coor2 = getPCACoor(Matrix,EigVec[1])
+
+    pyplot.scatter(Coor1,Coor2,c = Outcome[:-RollingDays],cmap="RdYlGn")
+    pyplot.colorbar()
+    pyplot.show()
 
     #Saya Fujiwara
     #Kuru Shichisei
@@ -82,3 +130,4 @@ if __name__ == "__main__":
     #Yui Oba
     #松本メイ
     #葵千惠
+    #Misuzu Tachibana
