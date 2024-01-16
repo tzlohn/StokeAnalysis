@@ -20,6 +20,17 @@ def getTicket(Ticket:str,Period:str):
     Data = Ticker.history(period = Period)
     return Data
 
+def RollingAvg(data,days = 9):
+
+    M1 = np.tri(data.shape[0]-days,data.shape[0],days)
+    M2 = np.flip(M1,0)
+    M3 = np.flip(M2,1)
+    Operator = (M1+M3)-1
+    result = np.dot(Operator,data)/(days+1)
+    #pyplot.imshow(Operator)
+    #pyplot.show()
+    return result
+
 def getDataMx(Data,days:int):
     High = Data["High"]
     Low = Data["Low"]
@@ -35,13 +46,15 @@ def getDataMx(Data,days:int):
 
     for idx,c in enumerate(Close):
         try:
-            AfterTom = (High[idx+2]+Low[idx+2])/2
+            today = (High[idx]+Low[idx])/2
             tomorrow = (High[idx+1]+Low[idx+1])/2
+            AfterTom = (High[idx+2]+Low[idx+2])/2
+            
             MiddleTom.append(tomorrow)
             MiddleAtom.append(AfterTom)
-            CloseList.append(Close[idx+1]-c)
-            today = (High[idx]+Low[idx])/2
-            MiddleList.append(today)          
+            CloseList.append(Close[idx+1]-c)            
+            MiddleList.append(today)
+
             MiddleDiff.append(tomorrow-today)
             DiffAtom.append(AfterTom-today)
         except:
@@ -49,16 +62,23 @@ def getDataMx(Data,days:int):
     CloseData = np.flip(np.asarray(CloseList))
     MiddleData = np.flip(np.asarray(MiddleList))
     MiddleTom = np.flip(np.asarray(MiddleTom))
-    MiddleDiff = np.flip(np.asarray(MiddleDiff))
-    DiffAtom = np.flip(np.asarray(DiffAtom))
-    """
-    print(MiddleData)
-    print(MiddleTom)
-    print(MiddleDiff)
-    """
+    MiddleAtom = np.flip(np.asarray(MiddleAtom))
     #print(MiddleData)
+    MiddleData = RollingAvg(MiddleData)
+    AvgTom = RollingAvg(MiddleTom)
+    AvgAtom = RollingAvg(MiddleAtom)
+
+    #MiddleDiff = np.flip(np.asarray(MiddleDiff))
+    #DiffAtom = np.flip(np.asarray(DiffAtom))
+    MiddleDiff = MiddleTom[:-9]-MiddleData
+    DiffAtom = MiddleAtom[:-9]-MiddleData
+  
+    print(MiddleTom)
+    #print(MiddleDiff)
+    
+    print(MiddleData)
     #print(DiffAtom)
-    for idx in range(CloseData.shape[0]-days):
+    for idx in range(MiddleData.shape[0]-days):
         ThisList = list()
         for ind in range(days-1):
             ThisList.append(MiddleData[idx]-MiddleData[idx+ind+1])
@@ -138,21 +158,26 @@ if __name__ == "__main__":
     Coor3 = getPCACoor(Matrix,EigVec[2])
     Coor4 = getPCACoor(Matrix,EigVec[3])
     #print(AToutcome)
+    #print(Matrix[:,0].shape)
+    #print(AToutcome.shape)
 
-    result = np.polyfit(Matrix[:,2],Matrix[:,1],1)
-    #result = np.polyfit(Matrix[:,0],AToutcome[:-RollingDays],1)
-    print(result) ################# m=0.53586004 y0=0.68195792
+    #result = np.polyfit(Matrix[:,2],Matrix[:,1],1)
+    result = np.polyfit(Matrix[:,0],AToutcome[:-RollingDays],1)
+    print(result) ################# m=0.67039896 y0=-0.04488662
+    m = result[0]
+    d = result[1]
     Vmin = np.min(Matrix[:,0])
     Vmax = np.max(Matrix[:,0])
     Xarray = np.asarray([Vmin,Vmax])
-    Yarray = result[1]+result[0]*Xarray
+    #Yarray = (d+m*Xarray)/(1-m)
+    Yarray = d+m*Xarray
     #pyplot.plot(Matrix[:,0])
     #pyplot.plot(Outcome)
     #print(Matrix[:,0])
     #pyplot.scatter(Coor1,Coor2,c = AToutcome[:-RollingDays],cmap="RdYlGn")
     #pyplot.scatter(Matrix[:,0],Matrix[:,1],c = Outcome[:-RollingDays],cmap="RdYlGn")
     pyplot.scatter(Matrix[:,0],AToutcome[:-RollingDays],marker="o")
-    pyplot.scatter(Matrix[:,0],Matrix[:,0]*(0.682/(1-0.682))+(1/0.682),marker="x")
+    #pyplot.scatter(Matrix[:,0],Matrix[:,0]*(0.682/(1-0.682))+(1/0.682),marker="x")
     #pyplot.scatter(Coor4,AToutcome[:-RollingDays],marker="x")
     pyplot.plot(Xarray,Yarray,"r--")
     pyplot.plot(Xarray,np.asarray([0,0]),"b--")
