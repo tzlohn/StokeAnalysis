@@ -28,34 +28,45 @@ def getDataMx(Data,days:int):
     MxList = list()
     CloseList = list()
     MiddleList = list()
-    MiddleDiff = list()
-    MiddleTom = list()
+    MiddleDiff = list() # Difference to 1 day after
+    MiddleTom = list() # Value of tomorrow
+    MiddleAtom = list() # Value of the day after tomorrow
+    DiffAtom = list() # Difference to 2 days after
 
     for idx,c in enumerate(Close):
         try:
+            AfterTom = (High[idx+2]+Low[idx+2])/2
             tomorrow = (High[idx+1]+Low[idx+1])/2
             MiddleTom.append(tomorrow)
+            MiddleAtom.append(AfterTom)
             CloseList.append(Close[idx+1]-c)
             today = (High[idx]+Low[idx])/2
             MiddleList.append(today)          
             MiddleDiff.append(tomorrow-today)
+            DiffAtom.append(AfterTom-today)
         except:
             pass
     CloseData = np.flip(np.asarray(CloseList))
     MiddleData = np.flip(np.asarray(MiddleList))
     MiddleTom = np.flip(np.asarray(MiddleTom))
     MiddleDiff = np.flip(np.asarray(MiddleDiff))
+    DiffAtom = np.flip(np.asarray(DiffAtom))
     """
     print(MiddleData)
     print(MiddleTom)
     print(MiddleDiff)
     """
+    #print(MiddleData)
+    #print(DiffAtom)
     for idx in range(CloseData.shape[0]-days):
         ThisList = list()
         for ind in range(days-1):
             ThisList.append(MiddleData[idx]-MiddleData[idx+ind+1])
         MxList.append(ThisList)
-
+    MxList = np.asarray(MxList)
+    #print(MxList[:,0])
+    #print(MxList[:,1])
+    #print(MxList[:,2])
     #print(np.round(MiddleDiff,decimals=2))
     """
     for idx,v in enumerate(MiddleDiff):
@@ -64,7 +75,7 @@ def getDataMx(Data,days:int):
         except:
             pass
     """
-    return [np.asarray(MxList),MiddleDiff]
+    return [MxList,MiddleDiff,DiffAtom]
 
 def getCovMx(Mx):
     one = np.ones(shape = (Mx.shape[0],Mx.shape[0]))
@@ -118,23 +129,34 @@ class MainWin(QtWidgets.QWidget):
 if __name__ == "__main__":
     RollingDays = 6
 
-    Data = getTicket("^TWII","5y")
-    [Matrix,Outcome] = getDataMx(Data,RollingDays)
+    Data = getTicket("^TWII","2y")
+    [Matrix,TOutcome,AToutcome] = getDataMx(Data,RollingDays)
     CovMx = getCovMx(Matrix)
     EigVec = getEigen(CovMx)
-
     Coor1 = getPCACoor(Matrix,EigVec[0])
     Coor2 = getPCACoor(Matrix,EigVec[1])
     Coor3 = getPCACoor(Matrix,EigVec[2])
     Coor4 = getPCACoor(Matrix,EigVec[3])
-    
+    #print(AToutcome)
+
+    result = np.polyfit(Matrix[:,2],Matrix[:,1],1)
+    #result = np.polyfit(Matrix[:,0],AToutcome[:-RollingDays],1)
+    print(result) ################# m=0.53586004 y0=0.68195792
+    Vmin = np.min(Matrix[:,0])
+    Vmax = np.max(Matrix[:,0])
+    Xarray = np.asarray([Vmin,Vmax])
+    Yarray = result[1]+result[0]*Xarray
     #pyplot.plot(Matrix[:,0])
     #pyplot.plot(Outcome)
     #print(Matrix[:,0])
-    #pyplot.scatter(Coor1,Coor2,c = Outcome[:-RollingDays],cmap="RdYlGn")
+    #pyplot.scatter(Coor1,Coor2,c = AToutcome[:-RollingDays],cmap="RdYlGn")
     #pyplot.scatter(Matrix[:,0],Matrix[:,1],c = Outcome[:-RollingDays],cmap="RdYlGn")
-    pyplot.scatter(Matrix[:,1],Matrix[:,2],marker="x")
-    #pyplot.scatter(Matrix[:,4],Outcome[:-RollingDays])
+    pyplot.scatter(Matrix[:,0],AToutcome[:-RollingDays],marker="o")
+    pyplot.scatter(Matrix[:,0],Matrix[:,0]*(0.682/(1-0.682))+(1/0.682),marker="x")
+    #pyplot.scatter(Coor4,AToutcome[:-RollingDays],marker="x")
+    pyplot.plot(Xarray,Yarray,"r--")
+    pyplot.plot(Xarray,np.asarray([0,0]),"b--")
+    #pyplot.scatter(Matrix[:,2],Matrix[:,1],marker = "x")
     #pyplot.scatter(Matrix[:-1,0],Outcome[1:-RollingDays])
     #pyplot.colorbar()
     pyplot.show()
