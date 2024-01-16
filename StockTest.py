@@ -29,33 +29,42 @@ def getDataMx(Data,days:int):
     CloseList = list()
     MiddleList = list()
     MiddleDiff = list()
+    MiddleTom = list()
 
     for idx,c in enumerate(Close):
         try:
+            tomorrow = (High[idx+1]+Low[idx+1])/2
+            MiddleTom.append(tomorrow)
             CloseList.append(Close[idx+1]-c)
             today = (High[idx]+Low[idx])/2
-            MiddleList.append(today)
-            tomorrow = (High[idx+1]+Low[idx+1])/2
+            MiddleList.append(today)          
             MiddleDiff.append(tomorrow-today)
         except:
             pass
     CloseData = np.flip(np.asarray(CloseList))
     MiddleData = np.flip(np.asarray(MiddleList))
-
+    MiddleTom = np.flip(np.asarray(MiddleTom))
+    MiddleDiff = np.flip(np.asarray(MiddleDiff))
+    """
+    print(MiddleData)
+    print(MiddleTom)
+    print(MiddleDiff)
+    """
     for idx in range(CloseData.shape[0]-days):
         ThisList = list()
         for ind in range(days-1):
-            ThisList.append(MiddleData[idx+1]-MiddleData[idx+1+ind+1])
+            ThisList.append(MiddleData[idx]-MiddleData[idx+ind+1])
         MxList.append(ThisList)
 
-    print(np.round(MiddleDiff,decimals=2))
+    #print(np.round(MiddleDiff,decimals=2))
+    """
     for idx,v in enumerate(MiddleDiff):
         try:
             print(np.round(MxList[idx],decimals=2))
         except:
             pass
-    
-    return [np.asarray(MxList),np.flip(np.asarray(MiddleDiff))]
+    """
+    return [np.asarray(MxList),MiddleDiff]
 
 def getCovMx(Mx):
     one = np.ones(shape = (Mx.shape[0],Mx.shape[0]))
@@ -109,16 +118,25 @@ class MainWin(QtWidgets.QWidget):
 if __name__ == "__main__":
     RollingDays = 6
 
-    Data = getTicket("^TWII","1y")
+    Data = getTicket("^TWII","5y")
     [Matrix,Outcome] = getDataMx(Data,RollingDays)
     CovMx = getCovMx(Matrix)
     EigVec = getEigen(CovMx)
 
     Coor1 = getPCACoor(Matrix,EigVec[0])
     Coor2 = getPCACoor(Matrix,EigVec[1])
-
-    pyplot.scatter(Coor1,Coor2,c = Outcome[:-RollingDays],cmap="RdYlGn")
-    pyplot.colorbar()
+    Coor3 = getPCACoor(Matrix,EigVec[2])
+    Coor4 = getPCACoor(Matrix,EigVec[3])
+    
+    #pyplot.plot(Matrix[:,0])
+    #pyplot.plot(Outcome)
+    #print(Matrix[:,0])
+    #pyplot.scatter(Coor1,Coor2,c = Outcome[:-RollingDays],cmap="RdYlGn")
+    #pyplot.scatter(Matrix[:,0],Matrix[:,1],c = Outcome[:-RollingDays],cmap="RdYlGn")
+    pyplot.scatter(Matrix[:,1],Matrix[:,2],marker="x")
+    #pyplot.scatter(Matrix[:,4],Outcome[:-RollingDays])
+    #pyplot.scatter(Matrix[:-1,0],Outcome[1:-RollingDays])
+    #pyplot.colorbar()
     pyplot.show()
 
     #Saya Fujiwara
