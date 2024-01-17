@@ -20,14 +20,16 @@ def getTicket(Ticket:str,Period:str):
     Data = Ticker.history(period = Period)
     return Data
 
-def RollingAvg(data,days = 9):
+def RollingAvg(data,days = 10):
 
-    M1 = np.tri(data.shape[0]-days,data.shape[0],days)
+    M1 = np.tri(data.shape[0]-days+1,data.shape[0],days-1)
     M2 = np.flip(M1,0)
     M3 = np.flip(M2,1)
     Operator = (M1+M3)-1
-    result = np.dot(Operator,data)/(days+1)
-    #pyplot.imshow(Operator)
+    #OneRow = Operator[0,:]
+    #print(np.sum(OneRow))
+    result = np.dot(Operator,data)/days
+    #pyplot.imshow(M1)
     #pyplot.show()
     return result
 
@@ -65,6 +67,7 @@ def getDataMx(Data,days:int):
     MiddleAtom = np.flip(np.asarray(MiddleAtom))
     #print(MiddleData)
     MiddleData = RollingAvg(MiddleData)
+    #print(MiddleData)
     AvgTom = RollingAvg(MiddleTom)
     AvgAtom = RollingAvg(MiddleAtom)
 
@@ -73,10 +76,10 @@ def getDataMx(Data,days:int):
     MiddleDiff = MiddleTom[:-9]-MiddleData
     DiffAtom = MiddleAtom[:-9]-MiddleData
   
-    print(MiddleTom)
+    #print(MiddleTom)
     #print(MiddleDiff)
     
-    print(MiddleData)
+    #print(MiddleData)
     #print(DiffAtom)
     for idx in range(MiddleData.shape[0]-days):
         ThisList = list()
