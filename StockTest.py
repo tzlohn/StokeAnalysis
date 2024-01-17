@@ -184,7 +184,7 @@ class MetricGroup(QtWidgets.QGroupBox):
         self.DayLineCB.setText("日線")
 
         self.DayLineOpt = QtWidgets.QComboBox(self)
-        self.DayLineOpt.addItems(["開盤","收盤","最高","最低"])
+        self.DayLineOpt.addItems(["開盤","收盤","最高","最低","高低平均"])
 
         self.DayLineColor = ColorSelectComboBox(self,self.MainWin.ColorList)               
 
@@ -263,13 +263,20 @@ class MetricGroup(QtWidgets.QGroupBox):
 
         if self.DayLineCB.isChecked():
             Option = self.DayLineOpt.currentIndex()
-            self.RawData = self.MainWin.DataSource.PeriodData[self.OptionDict[Option]]
+            if Option != 4:
+                self.RawData = self.MainWin.DataSource.PeriodData[self.OptionDict[Option]]
+            else:
+                self.RawData = (self.MainWin.DataSource.PeriodData["High"] + self.MainWin.DataSource.PeriodData["Low"])/2
             QColor = self.MainWin.ColorList[self.DayLineColor.currentIndex()]
             self.CrossHairPlot.plot(self.RawData.values,np.arange(self.RawData.values.shape[0]),QColor)
 
         if self.AvgCB.isChecked():
-            RawData = self.MainWin.DataSource.PeriodData["Close"]
-            self.calculateMetric(type = "DayAvg",Data = RawData.values)
+            if self.DayLineCB.isChecked() and self.DayLineOpt.currentIndex() == 4:
+                RawData = self.RawData
+                self.calculateMetric(type = "DayAvg",Data = RawData)
+            else:
+                RawData = self.MainWin.DataSource.PeriodData["Close"]
+                self.calculateMetric(type = "DayAvg",Data = RawData.values)
             QColor = self.MainWin.ColorList[self.AvgDaysColor.currentIndex()]
             self.CrossHairPlot.plot(self.RollingAvg[0],self.RollingAvg[1],QColor)
         
