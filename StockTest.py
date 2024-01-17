@@ -263,12 +263,13 @@ class MetricGroup(QtWidgets.QGroupBox):
 
         if self.DayLineCB.isChecked():
             Option = self.DayLineOpt.currentIndex()
+            QColor = self.MainWin.ColorList[self.DayLineColor.currentIndex()]
             if Option != 4:
                 self.RawData = self.MainWin.DataSource.PeriodData[self.OptionDict[Option]]
+                self.CrossHairPlot.plot(self.RawData.values,np.arange(self.RawData.values.shape[0]),QColor)
             else:
-                self.RawData = (self.MainWin.DataSource.PeriodData["High"] + self.MainWin.DataSource.PeriodData["Low"])/2
-            QColor = self.MainWin.ColorList[self.DayLineColor.currentIndex()]
-            self.CrossHairPlot.plot(self.RawData.values,np.arange(self.RawData.values.shape[0]),QColor)
+                self.RawData = (self.MainWin.DataSource.PeriodData["High"].values + self.MainWin.DataSource.PeriodData["Low"].values)/2
+                self.CrossHairPlot.plot(self.RawData,np.arange(self.RawData.shape[0]),QColor)
 
         if self.AvgCB.isChecked():
             if self.DayLineCB.isChecked() and self.DayLineOpt.currentIndex() == 4:
@@ -299,14 +300,13 @@ class MetricGroup(QtWidgets.QGroupBox):
             Kernel = self.createKernel(type = "DayAvg",AvgDay = AvgDays,Length = len(Data))
             RollingAvg = np.dot(Data,Kernel)/AvgDays
             #self.RollingAvg = np.concatenate((np.asarray([0]*AvgDays),self.RollingAvg))
-            self.RollingAvg = [RollingAvg,np.arange(AvgDays,len(Data),1)]
+            self.RollingAvg = [RollingAvg,np.arange(AvgDays-1,len(Data),1)]
 
     def createKernel(self,type,AvgDay,Length):
-        if type == "DayAvg":         
-            Kernel = np.zeros(shape = (Length,Length-AvgDay))
-            for n in range(Length-AvgDay):
+        if type == "DayAvg":  
+            Kernel = np.zeros(shape = (Length,Length-AvgDay+1))
+            for n in range(Length-AvgDay+1):
                 Kernel[n:n+AvgDay,n] = 1
-            #print(Kernel)
             return Kernel
 
     def checkAvgBox(self):
