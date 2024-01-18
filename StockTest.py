@@ -6,6 +6,7 @@ import sys,csv
 import CrossHairCursor as CHC
 import operator
 from matplotlib import pyplot
+import pandas
 
 OPDict = {">":operator.gt,"=":operator.eq,">":operator.lt}
 
@@ -13,11 +14,19 @@ TicketList = ["0050.TW","2330.TW","^TWII","EURUSD=X","USDTWD=X","EURTWD=X"]
 
 UnitList = ["d","y","mo","m","h","wk"]
 
+Days = 10
+
+def printLinebyLine(Data:pandas):
+    for a in Data:
+        print(a)
+
 def getTicket(Ticket:str,Period:str):
     #Interval: "1h","3d","1mo"
     #Period: ["2023-01-14","2024-01-14"]
     Ticker =yf.Ticker(Ticket)
     Data = Ticker.history(period = Period)
+
+    #printLinebyLine(Data)
     return Data
 
 def RollingAvg(data,days = 10):
@@ -54,7 +63,7 @@ def getDataMx(Data,days:int):
             
             MiddleTom.append(tomorrow)
             MiddleAtom.append(AfterTom)
-            CloseList.append(Close[idx+1]-c)            
+            CloseList.append(c)            
             MiddleList.append(today)
 
             MiddleDiff.append(tomorrow-today)
@@ -66,15 +75,16 @@ def getDataMx(Data,days:int):
     MiddleTom = np.flip(np.asarray(MiddleTom))
     MiddleAtom = np.flip(np.asarray(MiddleAtom))
     #print(MiddleData)
-    MiddleData = RollingAvg(MiddleData)
+    MiddleData = RollingAvg(MiddleData,Days)
     #print(MiddleData)
-    AvgTom = RollingAvg(MiddleTom)
-    AvgAtom = RollingAvg(MiddleAtom)
+    AvgTom = RollingAvg(MiddleTom,Days)
+    AvgAtom = RollingAvg(MiddleAtom,Days)
 
     #MiddleDiff = np.flip(np.asarray(MiddleDiff))
     #DiffAtom = np.flip(np.asarray(DiffAtom))
-    MiddleDiff = MiddleTom[:-9]-MiddleData
-    DiffAtom = MiddleAtom[:-9]-MiddleData
+    MiddleDiff = MiddleTom[:-Days+1]-MiddleData
+    DiffAtom = MiddleAtom[:-Days+1]-MiddleData
+    LabelData = CloseData[:-Days+1]-MiddleData
   
     #print(MiddleTom)
     #print(MiddleDiff)
@@ -98,7 +108,7 @@ def getDataMx(Data,days:int):
         except:
             pass
     """
-    return [MxList,MiddleDiff,DiffAtom]
+    return [MxList,MiddleDiff,DiffAtom,LabelData]
 
 def getCovMx(Mx):
     one = np.ones(shape = (Mx.shape[0],Mx.shape[0]))
@@ -153,7 +163,7 @@ if __name__ == "__main__":
     RollingDays = 6
 
     Data = getTicket("^TWII","2y")
-    [Matrix,TOutcome,AToutcome] = getDataMx(Data,RollingDays)
+    [Matrix,TOutcome,AToutcome,Label] = getDataMx(Data,RollingDays)
     CovMx = getCovMx(Matrix)
     EigVec = getEigen(CovMx)
     Coor1 = getPCACoor(Matrix,EigVec[0])
@@ -179,14 +189,14 @@ if __name__ == "__main__":
     #print(Matrix[:,0])
     #pyplot.scatter(Coor1,Coor2,c = AToutcome[:-RollingDays],cmap="RdYlGn")
     #pyplot.scatter(Matrix[:,0],Matrix[:,1],c = Outcome[:-RollingDays],cmap="RdYlGn")
-    pyplot.scatter(Matrix[:,0],AToutcome[:-RollingDays],marker="o")
+    pyplot.scatter(Matrix[:,0],AToutcome[:-RollingDays],marker="o", c = Label[:-RollingDays])
     #pyplot.scatter(Matrix[:,0],Matrix[:,0]*(0.682/(1-0.682))+(1/0.682),marker="x")
     #pyplot.scatter(Coor4,AToutcome[:-RollingDays],marker="x")
     pyplot.plot(Xarray,Yarray,"r--")
     pyplot.plot(Xarray,np.asarray([0,0]),"b--")
     #pyplot.scatter(Matrix[:,2],Matrix[:,1],marker = "x")
     #pyplot.scatter(Matrix[:-1,0],Outcome[1:-RollingDays])
-    #pyplot.colorbar()
+    pyplot.colorbar()
     pyplot.show()
 
     #Saya Fujiwara
