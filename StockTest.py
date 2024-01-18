@@ -17,16 +17,16 @@ UnitList = ["d","y","mo","m","h","wk"]
 Days = 10
 
 def printLinebyLine(Data:pandas):
-    for a in Data:
-        print(a)
+    for idx,a in enumerate(Data.index):
+        print(a,Data["High"].values[idx],Data["Low"].values[idx],Data["Close"].values[idx],(Data["High"].values[idx]+Data["Low"].values[idx])/2)
 
 def getTicket(Ticket:str,Period:str):
     #Interval: "1h","3d","1mo"
     #Period: ["2023-01-14","2024-01-14"]
     Ticker =yf.Ticker(Ticket)
     Data = Ticker.history(period = Period)
-    print(Data.index)
-    #printLinebyLine(Data)
+    #print(Data.index[0].)
+    printLinebyLine(Data)
     return Data
 
 def RollingAvg(data,days = 10):
