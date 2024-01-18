@@ -25,7 +25,7 @@ def getTicket(Ticket:str,Period:str):
     #Period: ["2023-01-14","2024-01-14"]
     Ticker =yf.Ticker(Ticket)
     Data = Ticker.history(period = Period)
-
+    print(Data.index)
     #printLinebyLine(Data)
     return Data
 
