@@ -7,6 +7,11 @@ import CrossHairCursor as CHC
 import operator
 from matplotlib import pyplot
 import pandas
+import tkinter as tk
+from tkinter import filedialog
+
+root = tk.Tk()
+root.withdraw()
 
 OPDict = {">":operator.gt,"=":operator.eq,">":operator.lt}
 
@@ -16,17 +21,47 @@ UnitList = ["d","y","mo","m","h","wk"]
 
 Days = 10
 
+def plt_chinese():
+    pyplot.rcParams['font.sans-serif'] = ['Microsoft JhengHei'] # 修改中文字體
+    pyplot.rcParams['axes.unicode_minus'] = False
+
 def printLinebyLine(Data:pandas):
     for idx,a in enumerate(Data.index):
         print(a,Data["High"].values[idx],Data["Low"].values[idx],Data["Close"].values[idx],(Data["High"].values[idx]+Data["Low"].values[idx])/2)
+
+def outputTable(Data):
+    PathDir = filedialog.askdirectory()
+    #PathDir = QtWidgets.QFileDialog.getExistingDirectory(caption="選擇資料夾")
+    PathDir = PathDir + "/"+"報表.csv"
+
+    TableList = list()
+    
+    for idx,Date in enumerate(Data.index):
+        OutDict = dict()
+        OutDict["日期"] = Date
+        OutDict["開盤"] = round(Data["Open"].values[idx],2)
+        OutDict["收盤"] = round(Data["Close"].values[idx],2)
+        OutDict["最高"] = round(Data["High"].values[idx],2)
+        OutDict["最低"] = round(Data["Low"].values[idx],2)
+        OutDict["均價"] = round((Data["High"].values[idx]+Data["Low"].values[idx])/2,2)
+        TableList.append(OutDict)
+
+    with open(PathDir,"w+") as csvFile:
+        FieldNames = ["日期","開盤","收盤","最高","最低","均價"]
+        writer = csv.DictWriter(csvFile, fieldnames=FieldNames)
+
+        writer.writeheader()
+        for aDict in TableList:
+            #print(aDict)
+            writer.writerow(aDict)  
 
 def getTicket(Ticket:str,Period:str):
     #Interval: "1h","3d","1mo"
     #Period: ["2023-01-14","2024-01-14"]
     Ticker =yf.Ticker(Ticket)
     Data = Ticker.history(period = Period)
-    #print(Data.index[0].)
-    printLinebyLine(Data)
+    #outputTable(Data)
+    #printLinebyLine(Data)
     return Data
 
 def RollingAvg(data,days = 10):
@@ -46,6 +81,7 @@ def getDataMx(Data,days:int):
     High = Data["High"]
     Low = Data["Low"]
     Close = Data["Close"]
+    Open = Data["Open"]
 
     MxList = list()
     CloseList = list()
@@ -54,16 +90,24 @@ def getDataMx(Data,days:int):
     MiddleTom = list() # Value of tomorrow
     MiddleAtom = list() # Value of the day after tomorrow
     DiffAtom = list() # Difference to 2 days after
+    OpenList = list()
+    ATOpenList = list()
+    ATCloseList = list()
+    ATHighList = list()
 
     for idx,c in enumerate(Close):
         try:
             today = (High[idx]+Low[idx])/2
             tomorrow = (High[idx+1]+Low[idx+1])/2
             AfterTom = (High[idx+2]+Low[idx+2])/2
-            
+            ATOpenList.append(Open[idx+2])
+            ATCloseList.append(Close[idx+2])
+            ATHighList.append(High[idx+2]) 
             MiddleTom.append(tomorrow)
             MiddleAtom.append(AfterTom)
-            CloseList.append(c)            
+            CloseList.append(c)
+            OpenList.append(Open[idx])
+                       
             MiddleList.append(today)
 
             MiddleDiff.append(tomorrow-today)
@@ -71,6 +115,10 @@ def getDataMx(Data,days:int):
         except:
             pass
     CloseData = np.flip(np.asarray(CloseList))
+    OpenData = np.flip(np.asarray(OpenList))
+    ATCloseData = np.flip(np.asarray(ATCloseList))
+    ATHighData = np.flip(np.asarray(ATHighList))
+    ATOpenData = np.flip(np.asarray(ATOpenList))
     MiddleData = np.flip(np.asarray(MiddleList))
     MiddleTom = np.flip(np.asarray(MiddleTom))
     MiddleAtom = np.flip(np.asarray(MiddleAtom))
@@ -84,8 +132,14 @@ def getDataMx(Data,days:int):
     #DiffAtom = np.flip(np.asarray(DiffAtom))
     MiddleDiff = MiddleTom[:-Days+1]-MiddleData
     DiffAtom = MiddleAtom[:-Days+1]-MiddleData
-    LabelData = CloseData[:-Days+1]-MiddleData
-  
+    #DiffAtom = MiddleAtom[:-Days+1]-CloseData[:-Days+1]
+
+    LabelData = CloseData[:-Days+1]-MiddleData # today close > today middle
+    #LabelData = OpenData[:-Days+1]-CloseData[:-Days+1] # AfterTomorrow Open > Today close
+    #LabelData = ATHighData[:-Days+1]-CloseData[:-Days+1]
+    
+    #print(MiddleData)
+    #print(LabelData)
     #print(MiddleTom)
     #print(MiddleDiff)
     
@@ -94,7 +148,8 @@ def getDataMx(Data,days:int):
     for idx in range(MiddleData.shape[0]-days):
         ThisList = list()
         for ind in range(days-1):
-            ThisList.append(MiddleData[idx]-MiddleData[idx+ind+1])
+            ThisList.append(CloseData[idx]-MiddleData[idx+ind+1])
+            #ThisList.append(MiddleData[idx]-MiddleData[idx+ind+1])
         MxList.append(ThisList)
     MxList = np.asarray(MxList)
     #print(MxList[:,0])
@@ -189,11 +244,16 @@ if __name__ == "__main__":
     #print(Matrix[:,0])
     #pyplot.scatter(Coor1,Coor2,c = AToutcome[:-RollingDays],cmap="RdYlGn")
     #pyplot.scatter(Matrix[:,0],Matrix[:,1],c = Outcome[:-RollingDays],cmap="RdYlGn")
-    pyplot.scatter(Matrix[:,0],AToutcome[:-RollingDays],marker="o", c = Label[:-RollingDays])
+    pyplot.scatter(Matrix[:,0],AToutcome[:-RollingDays],marker="o", c = Label[:-RollingDays],vmin=0,vmax=10)
     #pyplot.scatter(Matrix[:,0],Matrix[:,0]*(0.682/(1-0.682))+(1/0.682),marker="x")
     #pyplot.scatter(Coor4,AToutcome[:-RollingDays],marker="x")
     pyplot.plot(Xarray,Yarray,"r--")
     pyplot.plot(Xarray,np.asarray([0,0]),"b--")
+    pyplot.plot(np.asarray([0,0]),Yarray,"b--")
+    pyplot.xlabel("進場時機 : 今天收盤(日線) - 昨天中價(10日平均線)")
+    pyplot.ylabel("出場-進場 : 後天中價(日線) - 今天中價(10日平均線)")
+    pyplot.title("黃色: 今日收盤 > 今日中價")
+    plt_chinese()
     #pyplot.scatter(Matrix[:,2],Matrix[:,1],marker = "x")
     #pyplot.scatter(Matrix[:-1,0],Outcome[1:-RollingDays])
     pyplot.colorbar()
