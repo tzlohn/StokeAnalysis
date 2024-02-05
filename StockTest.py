@@ -70,7 +70,35 @@ def acorr(data):
 
     pyplot.plot(x,corr,"x-")
     pyplot.show()
-      
+
+def alignData(Data:list)->list:
+    # All data are stored in a list, every data in the data list are flipped
+    # which means the newest data is in index 0. The tail of the longer one will be cutted
+    # So for example, the shortest one has 5 element shorter than the longest one, then
+    # every data is aligned to the shortest one, and the longest data will start from day 5 (which is positioned in the end index of the data)
+
+    DataLength = list()
+    for datum in Data:
+        DataLength.append(datum.shape[0])
+    minL = min(DataLength)
+    
+    OutputList = list()
+    for idx,datum in enumerate(Data):
+        OutputList.append(datum[:minL-DataLength[idx]])
+
+    return OutputList
+
+def findSellCondition(Data,buyPrice:list,SellConditions:list,Condition:list)->list:
+    # SellConditions is a list of dict, the key of dict is SellValue,op,and unit
+    # Condition is a list including a series of "and", "or", the length of the list should be -1 of SellConditions
+    # op: "<",">"
+    # unit: "%":percentage,"$":price
+    # SellValue: a value, depends on unit
+    # return a sell price from Data
+    return      
+
+def findBuyCondition(Data,BuyCondition) -> list:
+    return
 
 def getTicket(Ticket:str,Period:str):
     #Interval: "1h","3d","1mo"
@@ -81,7 +109,7 @@ def getTicket(Ticket:str,Period:str):
     #printLinebyLine(Data)
     return Data
 
-def RollingAvg(data,days = 10):
+def getRollingAvg(data,days = 10):
 
     M1 = np.tri(data.shape[0]-days+1,data.shape[0],days-1)
     M2 = np.flip(M1,0)
@@ -94,89 +122,21 @@ def RollingAvg(data,days = 10):
     #pyplot.show()
     return result
 
-def getDataMx(Data,days:int):
-    High = Data["High"]
-    Low = Data["Low"]
-    Close = Data["Close"]
-    Open = Data["Open"]
-
-    MxList = list()
-    CloseList = list()
-    MiddleList = list()
-    MiddleDiff = list() # Difference to 1 day after
-    MiddleTom = list() # Value of tomorrow
-    MiddleAtom = list() # Value of the day after tomorrow
-    DiffAtom = list() # Difference to 2 days after
-    OpenList = list()
-    ATOpenList = list()
-    TCloseList = list()
-    ATCloseList = list()
-    ATHighList = list()
-    HighList = list()
-
-    for idx,c in enumerate(Close):
-        try:
-            today = (High[idx]+Low[idx])/2
-            tomorrow = (High[idx+1]+Low[idx+1])/2
-            AfterTom = (High[idx+2]+Low[idx+2])/2
-            ATOpenList.append(Open[idx+2])
-            ATCloseList.append(Close[idx+2])
-            ATHighList.append(High[idx+2]) 
-            TCloseList.append(Close[idx+1])
-            MiddleTom.append(tomorrow)
-            MiddleAtom.append(AfterTom)
-            HighList.append(High[idx])
-            CloseList.append(c)
-            OpenList.append(Open[idx])
-                       
-            MiddleList.append(today)
-
-            MiddleDiff.append(tomorrow-today)
-            DiffAtom.append(AfterTom-today)
-        except:
-            pass
-    CloseData = np.flip(np.asarray(CloseList))
-    HighData = np.flip(np.asarray(HighList))
-    OpenData = np.flip(np.asarray(OpenList))
-    ATCloseData = np.flip(np.asarray(ATCloseList))
-    TCloseData = np.flip(np.asarray(TCloseList))
-    ATHighData = np.flip(np.asarray(ATHighList))
-    ATOpenData = np.flip(np.asarray(ATOpenList))
-    MiddleData = np.flip(np.asarray(MiddleList))
-    MiddleTom = np.flip(np.asarray(MiddleTom))
-    MiddleAtom = np.flip(np.asarray(MiddleAtom))
-    #print(MiddleData)
-    MiddleData = RollingAvg(MiddleData,Days)
-    HighData = RollingAvg(HighData,Days)
-    #print(MiddleData)
-    AvgTom = RollingAvg(MiddleTom,Days)
-    AvgAtom = RollingAvg(MiddleAtom,Days)
-
-    #MiddleDiff = np.flip(np.asarray(MiddleDiff))
-    #DiffAtom = np.flip(np.asarray(DiffAtom))
-    MiddleDiff = MiddleTom[:-Days+1]-MiddleData
-    #DiffAtom = MiddleAtom[:-Days+1]-MiddleData
-    #DiffAtom = TCloseData[:-Days+1]-CloseData[:-Days+1]
-    DiffAtom = ATCloseData[:-Days+1]-ATOpenData[:-Days+1]
-
-    LabelData = CloseData[:-Days+1]-MiddleData # today close > today middle
-    #LabelData = OpenData[:-Days+1]-CloseData[:-Days+1] # AfterTomorrow Open > Today close
-    #LabelData = ATHighData[:-Days+1]-CloseData[:-Days+1]
+def getShiftData(Data:dict,tag:str,shift:int)->np.ndarray:
+    # Data: all data including High,Low,Close,Open
+    # tag can be "High,Low,Close"
+    # OutputData is flipped for newest data to be in index 0
     
-    #print(MiddleData)
-    #print(LabelData)
-    #print(MiddleTom)
-    #print(MiddleDiff)
-    
-    #print(MiddleData)
-    #print(DiffAtom)
+    OutputData = Data[tag]
+    return np.flip(OutputData[:-shift])
 
-    acorr(CloseData)
 
-    for idx in range(MiddleData.shape[0]-days):
+
+def getDayDiffMx(Data:np.ndarray,days:int):
+    for idx in range(Data.shape[0]-days):
         ThisList = list()
         for ind in range(days-1):
-            ThisList.append(CloseData[idx]-CloseData[idx+ind+1])
+            ThisList.append(Data[idx]-Data[idx+ind+1])
             #ThisList.append(MiddleData[idx]-MiddleData[idx+ind+1])
             #ThisList.append(HighData[idx]-HighData[idx+ind+1])
         MxList.append(ThisList)
@@ -192,7 +152,7 @@ def getDataMx(Data,days:int):
         except:
             pass
     """
-    return [MxList,MiddleDiff,DiffAtom,LabelData]
+    return MxList
 
 def getCovMx(Mx):
     one = np.ones(shape = (Mx.shape[0],Mx.shape[0]))
@@ -246,7 +206,14 @@ class MainWin(QtWidgets.QWidget):
 if __name__ == "__main__":
     RollingDays = 6
 
-    Data = getTicket("^TWII","2y")
+    Data = getTicket("^TWII","4y")
+    DataN0 = getRollingAvg(getShiftData(Data,"Close",0))
+    DataN1 = getRollingAvg(getShiftData(Data,"Close",1))
+    DataN2 = getRollingAvg(getShiftData(Data,"Close",2))
+    DataD01 = DataN0[:-1]-DataN1
+    DataD12 = DataN1[:-1]-DataN2
+
+    """
     [Matrix,TOutcome,AToutcome,Label] = getDataMx(Data,RollingDays)
     CovMx = getCovMx(Matrix)
     EigVec = getEigen(CovMx)
@@ -254,38 +221,44 @@ if __name__ == "__main__":
     Coor2 = getPCACoor(Matrix,EigVec[1])
     Coor3 = getPCACoor(Matrix,EigVec[2])
     Coor4 = getPCACoor(Matrix,EigVec[3])
+    
     #print(AToutcome)
     #print(Matrix[:,0].shape)
     #print(AToutcome.shape)
 
     #result = np.polyfit(Matrix[:,2],Matrix[:,1],1)
     result = np.polyfit(Matrix[:,0],AToutcome[:-RollingDays],1)
+    """
+    result = np.polyfit(XData,YData,1)
     print(result) ################# m=0.67039896 y0=-0.04488662
     m = result[0]
     d = result[1]
-    Vmin = np.min(Matrix[:,0])
-    Vmax = np.max(Matrix[:,0])
+    Vmin = np.min(XData)
+    Vmax = np.max(YData)
+
     Xarray = np.asarray([Vmin,Vmax])
     #Yarray = (d+m*Xarray)/(1-m)
     Yarray = d+m*Xarray
     #pyplot.plot(Matrix[:,0])
     #pyplot.plot(Outcome)
     #print(Matrix[:,0])
-    pyplot.scatter(Coor1,Coor3,c = AToutcome[:-RollingDays],cmap="RdYlGn",vmin=-10,vmax=10)
+    #pyplot.scatter(Coor1,Coor3,c = AToutcome[:-RollingDays],cmap="RdYlGn",vmin=-10,vmax=10)
     #pyplot.scatter(Matrix[:,0],Matrix[:,1],c = Outcome[:-RollingDays],cmap="RdYlGn")
     #pyplot.scatter(Matrix[:,0],AToutcome[:-RollingDays],marker="o", c = Label[:-RollingDays],vmin=0,vmax=10)
     #pyplot.scatter(Matrix[:,0],Matrix[:,0]*(0.682/(1-0.682))+(1/0.682),marker="x")
     #pyplot.scatter(Coor4,AToutcome[:-RollingDays],marker="x")
+    pyplot.scatter(XData,YData,marker="x")
     pyplot.plot(Xarray,Yarray,"r--")
     pyplot.plot(Xarray,np.asarray([0,0]),"b--")
     pyplot.plot(np.asarray([0,0]),Yarray,"b--")
-    pyplot.xlabel("趨勢參數 : 今天收盤(10日平均線) - 昨天收盤(10日平均線)")
-    pyplot.ylabel("出場-進場 : 後天收盤(日線) - 後天開盤(日線)")
-    pyplot.title("黃色: 今日收盤 > 今日中價")
+    pyplot.xlabel("趨勢參數 : 今天收盤(日線) - 昨天收盤(日線)")
+    pyplot.ylabel("出場-進場 : 明天收盤(日線) - 今天收盤(日線)")
+    pyplot.title("回測4年")
+    #pyplot.title("黃色: 今日收盤 > 今日中價")
     plt_chinese()
     #pyplot.scatter(Matrix[:,2],Matrix[:,1],marker = "x")
     #pyplot.scatter(Matrix[:-1,0],Outcome[1:-RollingDays])
-    pyplot.colorbar()
+    #pyplot.colorbar()
     pyplot.show()
 
     #Saya Fujiwara
@@ -298,3 +271,5 @@ if __name__ == "__main__":
     #松本メイ
     #葵千惠
     #Misuzu Tachibana
+    #Yanagi akira/miwoko/259LUXU-079
+    #翼みさき
