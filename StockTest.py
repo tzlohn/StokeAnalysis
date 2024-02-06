@@ -79,12 +79,14 @@ def alignData(Data:list)->list:
 
     DataLength = list()
     for datum in Data:
-        DataLength.append(datum.shape[0])
+        DataLength.append(len(datum))
     minL = min(DataLength)
     
     OutputList = list()
     for idx,datum in enumerate(Data):
-        OutputList.append(datum[:minL-DataLength[idx]])
+        for idx in range(len(datum)-minL):
+            datum.pop(idx)
+        OutputList.append(datum)
 
     return OutputList
 
@@ -110,29 +112,56 @@ def getTicket(Ticket:str,Period:str):
     return Data
 
 def getRollingAvg(data,days = 10):
-
-    M1 = np.tri(data.shape[0]-days+1,data.shape[0],days-1)
+    length = len(data)
+    M1 = np.tri(length-days+1,length,days-1)
     M2 = np.flip(M1,0)
     M3 = np.flip(M2,1)
     Operator = (M1+M3)-1
     #OneRow = Operator[0,:]
     #print(np.sum(OneRow))
+    data = np.asarray(list(data.values()))
     result = np.dot(Operator,data)/days
+    result = np.ndarray.tolist(result)
+
+    Output = dict()
+    for idx,value in enumerate(result):
+        Output[length-idx-1] = value 
     #pyplot.imshow(M1)
     #pyplot.show()
-    return result
+    return Output
 
-def getShiftData(Data:dict,tag:str,shift:int)->np.ndarray:
+def getFormatedData(Data:dict,tag:str,shift:int = 0) -> dict:
+    # Formated Data is a dict with index as key and price as keyword
     # Data: all data including High,Low,Close,Open
-    # tag can be "High,Low,Close"
-    # OutputData is flipped for newest data to be in index 0
+    # tag can be "High","Low","Close","Open"
+    TagData = Data[tag]
+    OutputData = dict()
+    for idx,datum in enumerate(TagData.values):
+        OutputData[idx] = datum
+
+    length = len(OutputData)
+    for idx in range(shift):
+        OutputData.pop(length-1-idx)
+
+    return OutputData
+
+def getDiffData(Data1:dict,Data2:dict)->dict:
+    if len(Data1) != len(Data2):
+        print("please align the data first")
+        return False
     
-    OutputData = Data[tag]
-    return np.flip(OutputData[:-shift])
+    d1 = np.asarray(list(Data1))
+    d2 = np.asarray(list(Data2))
+    d = d1-d2
+    LenDiff = max(Data1.keys())-len(Data1)
+    Output = dict() 
+    for key in Data1.keys():
+        Output[key] = d[key-LenDiff]
+    
+    return Output
 
-
-
-def getDayDiffMx(Data:np.ndarray,days:int):
+def getDayDiffMx(Data:dict,days:int):
+    Data = np.asarray(list(Data.values()))
     for idx in range(Data.shape[0]-days):
         ThisList = list()
         for ind in range(days-1):
@@ -207,11 +236,12 @@ if __name__ == "__main__":
     RollingDays = 6
 
     Data = getTicket("^TWII","4y")
-    DataN0 = getRollingAvg(getShiftData(Data,"Close",0))
-    DataN1 = getRollingAvg(getShiftData(Data,"Close",1))
-    DataN2 = getRollingAvg(getShiftData(Data,"Close",2))
-    DataD01 = DataN0[:-1]-DataN1
-    DataD12 = DataN1[:-1]-DataN2
+    DataN0 = getRollingAvg(getFormatedData(Data,"Close",0))
+    DataN1 = getRollingAvg(getFormatedData(Data,"Close",1))
+    DataN2 = getRollingAvg(getFormatedData(Data,"Close",2))
+    [DataN0,DataN1,DataN2] = alignData([DataN0,DataN1,DataN2])
+    DataD1 = getDiffData(DataN0,DataN1)
+    DataD2 = getDiffData(DataN1,DataN2)
 
     """
     [Matrix,TOutcome,AToutcome,Label] = getDataMx(Data,RollingDays)
