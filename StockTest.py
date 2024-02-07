@@ -90,17 +90,68 @@ def alignData(Data:list)->list:
 
     return OutputList
 
-def findSellCondition(Data,buyPrice:list,SellConditions:list,Condition:list)->list:
+def getSell(BuyDict:dict,Data:dict,SellConditions:list,Condition:list)->list:
+    # Data: Full data of a tag ("Close","High"), which can be different from Buy price
     # SellConditions is a list of dict, the key of dict is SellValue,op,and unit
     # Condition is a list including a series of "and", "or", the length of the list should be -1 of SellConditions
     # op: "<",">"
     # unit: "%":percentage,"$":price
-    # SellValue: a value, depends on unit
+    # value: a value, depends on unit
     # return a sell price from Data
+    for BuyDay,BuyPrice in BuyDict.items():
+        for aCondition in SellConditions:
+            match aCondition["unit"]:
+                case "%":
+                    value = (aCondition["value"]*0.01+1)*BuyPrice
+                case "$":
+                    value = aCondition["value"]        
+            for idx,datum in Data.items():
+                if idx <= BuyDay:
+                    continue
+                match aCondition["op"]:
+                    case ">":
+
+                    case "<":
     return      
 
-def findBuyCondition(Data,BuyCondition) -> list:
-    return
+def getBuyDay(BuyCondition:list, Conditions:list) -> list:
+    # BuyCondition: list of dicts
+    # "Data": dict
+    # "op": ">","<"
+    # "value": float
+    # "unit": "%","$"
+    #Condition is a list including a series of "and", "or", the length of the list should be -1 of SellConditions
+    Output = list()
+    for aCondition in BuyCondition:
+        result = list()
+        for idx,price in aCondition["Data"].items():
+            match aCondition["op"]:
+                case "<":
+                    if price < aCondition["value"]:
+                        result.append(idx)
+                case ">":
+                    if price > aCondition["value"]:
+                        result.append(idx)
+        Output.append(result)
+
+    for idx,cond in enumerate(Conditions):
+        result1 = Output[0]
+        result2 = Output[1]
+        Output.pop(0)
+        Output.pop(1)
+        if cond == "and":
+            NewResult = list()
+            for a in result2:
+                if a in result1:
+                    NewResult.append(a)
+        elif cond == "or":
+            NewResult = result2.copy()
+            for a in result2:
+                if not a in result1:
+                    NewResult.append(a)
+        Output.insert(0,NewResult)
+
+    return Output
 
 def getTicket(Ticket:str,Period:str):
     #Interval: "1h","3d","1mo"
