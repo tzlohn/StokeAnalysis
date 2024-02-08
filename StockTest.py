@@ -121,6 +121,8 @@ def checkCondition(BuyPrice,NowDay,aCondition)->bool:
                 return False
             else:
                 return True
+def checkLogic(LogicResult,OpList):
+    return 
 
 def getSellData(BuyDict:dict,NowData:dict,SellConditions:list,Condition:list)->list:
     # NowData: Full data of a tag ("Close","High"), which can be different from Buy price
@@ -141,29 +143,11 @@ def getSellData(BuyDict:dict,NowData:dict,SellConditions:list,Condition:list)->l
             if NowDay <= BuyDay:
                 continue
             n = 0
-            for idx,Condition in enumerate(Condition):
-                if checkCondition(BuyPrice,NowDay,SellConditions[idx]):
-                    match Condition:
-                        case "and":
-                            if checkCondition(BuyPrice,NowDay,SellConditions[idx+1]):
-                                n = idx+1
-                                continue
-                            else:
-                                break
-                        case "or":
-                            if checkCondition(BuyPrice,NowDay,SellConditions[idx+1]):
-                                n = idx+1
-                                continue
-                            else:
-                                break
-                else:
-                    if Condition == "or":
-                        if checkCondition(BuyPrice,NowDay,SellConditions[idx+1]):
-                            n = idx+1
-                            continue
-                        else:
-                            break
-            if n == len(SellConditions)-1: #it means all the conditions are passed
+            CheckResult = list()
+            for aCond in SellConditions:
+                CheckResult.append(checkCondition(BuyPrice,NowDay,aCond))
+            print(CheckResult)
+            if checkLogic(CheckResult,Condition):
                 SellDict[BuyDay] = (NowDay,BuyPrice,NowPrice)
                 break #the sell price for this buy price has been found, so the loop for NowDay can be broken.
 
