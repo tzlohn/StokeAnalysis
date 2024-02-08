@@ -81,40 +81,103 @@ def alignData(Data:list)->list:
     for datum in Data:
         DataLength.append(len(datum))
     minL = min(DataLength)
-    
+    minIdx = DataLength.index(minL)
+    minKey = min(Data[minIdx].keys())
+
     OutputList = list()
     for idx,datum in enumerate(Data):
-        for idx in range(len(datum)-minL):
+        for idx in range(min(list(datum.keys())),minKey,1):
             datum.pop(idx)
         OutputList.append(datum)
 
     return OutputList
 
-def getSell(BuyDict:dict,Data:dict,SellConditions:list,Condition:list)->list:
-    # Data: Full data of a tag ("Close","High"), which can be different from Buy price
-    # SellConditions is a list of dict, the key of dict is SellValue,op,and unit
-    # Condition is a list including a series of "and", "or", the length of the list should be -1 of SellConditions
+def checkCondition(BuyPrice,NowDay,aCondition)->bool:
     # op: "<",">"
     # unit: "%":percentage,"$":price
     # value: a value, depends on unit
+
+    DataPrice = aCondition["Data"][NowDay]
+
+    match aCondition["unit"]:
+        case "%":
+            value = (aCondition["value"]*0.01+1)*BuyPrice
+        case "$":
+            value = aCondition["value"]
+
+    match aCondition["op"]:
+        case ">":        
+            if DataPrice < value:
+                """
+                if (DataPrice-BuyPrice)*100/BuyPrice > 3:
+                    print(" %d : %.2f,%.2f"%(NowDay,DataPrice,(DataPrice-BuyPrice)*100/BuyPrice))
+                """
+                return False
+            else:
+                #print(" %d : %.2f,%.2f"%(NowDay,DataPrice,(DataPrice-BuyPrice)*100/BuyPrice))
+                return True
+        case "<":
+            if DataPrice > value:
+                return False
+            else:
+                return True
+
+def getSellData(BuyDict:dict,NowData:dict,SellConditions:list,Condition:list)->list:
+    # NowData: Full data of a tag ("Close","High"), which can be different from Buy price
+    # SellConditions is a list of dict, the key of dict is SellValue,op,and unit
+    # Condition is a list including a series of "and", "or", the length of the list should be -1 of SellConditions
+    # Data: Data used to compare coniditons, note that the index must be aligned correctly
+    # op: "<",">"
+    # unit: "%":percentage,"$":price
+    # value: a value, depends on unit
+    # if "%" in unit is used, and it want to use to indicate "price falling", then fill the value with negative number
     # return a sell price from Data
+    [Days,Prices] = convert2List(NowData)
+
+    SellDict = dict()
     for BuyDay,BuyPrice in BuyDict.items():
-        for aCondition in SellConditions:
-            match aCondition["unit"]:
-                case "%":
-                    value = (aCondition["value"]*0.01+1)*BuyPrice
-                case "$":
-                    value = aCondition["value"]        
-            for idx,datum in Data.items():
-                if idx <= BuyDay:
-                    continue
-                match aCondition["op"]:
-                    case ">":
+        print("%d : %.2f"%(BuyDay,BuyPrice))
+        for NowDay,NowPrice in zip(Days,Prices):
+            if NowDay <= BuyDay:
+                continue
+            n = 0
+            for idx,Condition in enumerate(Condition):
+                if checkCondition(BuyPrice,NowDay,SellConditions[idx]):
+                    match Condition:
+                        case "and":
+                            if checkCondition(BuyPrice,NowDay,SellConditions[idx+1]):
+                                n = idx+1
+                                continue
+                            else:
+                                break
+                        case "or":
+                            if checkCondition(BuyPrice,NowDay,SellConditions[idx+1]):
+                                n = idx+1
+                                continue
+                            else:
+                                break
+                else:
+                    if Condition == "or":
+                        if checkCondition(BuyPrice,NowDay,SellConditions[idx+1]):
+                            n = idx+1
+                            continue
+                        else:
+                            break
+            if n == len(SellConditions)-1: #it means all the conditions are passed
+                SellDict[BuyDay] = (NowDay,BuyPrice,NowPrice)
+                break #the sell price for this buy price has been found, so the loop for NowDay can be broken.
 
-                    case "<":
-    return      
+    return SellDict      
 
-def getBuyDay(BuyCondition:list, Conditions:list) -> list:
+def convert2List(DataDict):
+    return [list(DataDict.keys()),list(DataDict.values())]
+
+def printDict(Data:dict):
+    for key,value in Data.items():
+        print("%d: %.2f"%(key,value))
+
+def getBuyData(OriData,BuyCondition:list, Conditions:list) -> dict:
+    # OriData: Data to get buyprice
     # BuyCondition: list of dicts
     # "Data": dict
     # "op": ">","<"
@@ -135,10 +198,8 @@ def getBuyDay(BuyCondition:list, Conditions:list) -> list:
         Output.append(result)
 
     for idx,cond in enumerate(Conditions):
-        result1 = Output[0]
-        result2 = Output[1]
-        Output.pop(0)
-        Output.pop(1)
+        result1 = Output.pop(0)
+        result2 = Output.pop(0)
         if cond == "and":
             NewResult = list()
             for a in result2:
@@ -150,8 +211,13 @@ def getBuyDay(BuyCondition:list, Conditions:list) -> list:
                 if not a in result1:
                     NewResult.append(a)
         Output.insert(0,NewResult)
+    
+    Output = Output[0]
+    BuyDict = dict()
+    for BuyDay in Output:
+        BuyDict[BuyDay] = OriData[BuyDay]
 
-    return Output
+    return BuyDict
 
 def getTicket(Ticket:str,Period:str):
     #Interval: "1h","3d","1mo"
@@ -170,13 +236,17 @@ def getRollingAvg(data,days = 10):
     Operator = (M1+M3)-1
     #OneRow = Operator[0,:]
     #print(np.sum(OneRow))
-    data = np.asarray(list(data.values()))
-    result = np.dot(Operator,data)/days
+    Data = np.asarray(list(data.values()))
+    result = np.dot(Operator,Data)/days
     result = np.ndarray.tolist(result)
 
+    MaxIdx = max(list(data.keys()))
+    minIdx = min(list(data.keys()))           
     Output = dict()
-    for idx,value in enumerate(result):
-        Output[length-idx-1] = value 
+    for idx in range(Days+minIdx,MaxIdx+1,1):
+        #Output[idx] = result[resultLen-(idx-days+1)]
+        Output[idx] = result[idx-(days+minIdx)]
+
     #pyplot.imshow(M1)
     #pyplot.show()
     return Output
@@ -188,11 +258,11 @@ def getFormatedData(Data:dict,tag:str,shift:int = 0) -> dict:
     TagData = Data[tag]
     OutputData = dict()
     for idx,datum in enumerate(TagData.values):
-        OutputData[idx] = datum
+        OutputData[idx+shift] = datum
 
-    length = len(OutputData)
+    minidx = min(list(OutputData.keys()))
     for idx in range(shift):
-        OutputData.pop(length-1-idx)
+        OutputData.pop(idx+len(TagData))
 
     return OutputData
 
@@ -201,13 +271,13 @@ def getDiffData(Data1:dict,Data2:dict)->dict:
         print("please align the data first")
         return False
     
-    d1 = np.asarray(list(Data1))
-    d2 = np.asarray(list(Data2))
+    d1 = np.asarray(list(Data1.values()))
+    d2 = np.asarray(list(Data2.values()))
     d = d1-d2
     LenDiff = max(Data1.keys())-len(Data1)
     Output = dict() 
     for key in Data1.keys():
-        Output[key] = d[key-LenDiff]
+        Output[key] = d[key-LenDiff-1]
     
     return Output
 
@@ -287,13 +357,26 @@ if __name__ == "__main__":
     RollingDays = 6
 
     Data = getTicket("^TWII","4y")
-    DataN0 = getRollingAvg(getFormatedData(Data,"Close",0))
-    DataN1 = getRollingAvg(getFormatedData(Data,"Close",1))
-    DataN2 = getRollingAvg(getFormatedData(Data,"Close",2))
-    [DataN0,DataN1,DataN2] = alignData([DataN0,DataN1,DataN2])
-    DataD1 = getDiffData(DataN0,DataN1)
-    DataD2 = getDiffData(DataN1,DataN2)
+    Data0 = getFormatedData(Data,"Close",0)
+    DataN1 = getFormatedData(Data,"Close",1)
+    AData0 = getRollingAvg(getFormatedData(Data,"Close",0))
+    ADataN1 = getRollingAvg(getFormatedData(Data,"Close",1))
+    ADataN2 = getRollingAvg(getFormatedData(Data,"Close",2))
+    [Data0,AData0,ADataN1,ADataN2] = alignData([Data0,AData0,ADataN1,ADataN2])
+    DataD1 = getDiffData(AData0,ADataN1)
+    DataD2 = getDiffData(ADataN1,ADataN2)
 
+    BuyCondition1 = {"Data":DataD1,"op":">","value":0,"unit":"%"}
+    BuyCondition2 = {"Data":DataD2,"op":">","value":0,"unit":"%"}
+    SellCondition1 = {"Data":Data0,"op":">","value":4,"unit":"%"}
+    SellCondition2 = {"Data":Data0,"op":"<","value":-1.5,"unit":"%"} #(Data內的數字-買入價)/買入價<1.5%
+    SellCondition3 = {"Data":DataD1,"op":"<","value":0,"unit":"$"}
+    SellCondition4 = {"Data":DataD2,"op":"<","value":0,"unit":"$"}
+
+    BuyData = getBuyData(Data0,[BuyCondition1,BuyCondition2],["and"])
+    #printDict(BuyData)
+    SellData = getSellData(BuyData,Data0,[SellCondition1,SellCondition2,SellCondition3,SellCondition4],["or","or","and"])
+    printDict(SellData)
     """
     [Matrix,TOutcome,AToutcome,Label] = getDataMx(Data,RollingDays)
     CovMx = getCovMx(Matrix)
@@ -309,6 +392,8 @@ if __name__ == "__main__":
 
     #result = np.polyfit(Matrix[:,2],Matrix[:,1],1)
     result = np.polyfit(Matrix[:,0],AToutcome[:-RollingDays],1)
+    """
+
     """
     result = np.polyfit(XData,YData,1)
     print(result) ################# m=0.67039896 y0=-0.04488662
@@ -341,7 +426,7 @@ if __name__ == "__main__":
     #pyplot.scatter(Matrix[:-1,0],Outcome[1:-RollingDays])
     #pyplot.colorbar()
     pyplot.show()
-
+    """
     #Saya Fujiwara
     #Kuru Shichisei
     #Rina Nanase
