@@ -121,8 +121,21 @@ def checkCondition(BuyPrice,NowDay,aCondition)->bool:
                 return False
             else:
                 return True
-def checkLogic(LogicResult,OpList):
-    return 
+
+
+def checkLogic(LogicResult,OpList)->bool:
+
+    for idx,anOp in OpList:
+        R1 = LogicResult[idx]
+        R2 = LogicResult[idx+1]
+        match anOp:
+            case "and":
+                
+            case "or":
+                
+            case _:
+                if type(anOp) is list:
+                    R = checkLogic([R1,R2],anOp)                    
 
 def getSellData(BuyDict:dict,NowData:dict,SellConditions:list,Condition:list)->list:
     # NowData: Full data of a tag ("Close","High"), which can be different from Buy price
