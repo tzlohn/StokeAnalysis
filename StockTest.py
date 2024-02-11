@@ -30,7 +30,7 @@ def printLinebyLine(Data:pandas):
     for idx,a in enumerate(Data.index):
         print(a,Data["High"].values[idx],Data["Low"].values[idx],Data["Close"].values[idx],(Data["High"].values[idx]+Data["Low"].values[idx])/2)
 
-def outputTable(Data):
+def saveRaw(Data):
     PathDir = filedialog.askdirectory()
     #PathDir = QtWidgets.QFileDialog.getExistingDirectory(caption="選擇資料夾")
     PathDir = PathDir + "/"+"報表.csv"
@@ -38,8 +38,9 @@ def outputTable(Data):
     TableList = list()
     
     for idx,Date in enumerate(Data.index):
+        Date = str(Date)
         OutDict = dict()
-        OutDict["日期"] = Date
+        OutDict["日期"] = Date[0:10]
         OutDict["開盤"] = round(Data["Open"].values[idx],2)
         OutDict["收盤"] = round(Data["Close"].values[idx],2)
         OutDict["最高"] = round(Data["High"].values[idx],2)
@@ -47,14 +48,47 @@ def outputTable(Data):
         OutDict["均價"] = round((Data["High"].values[idx]+Data["Low"].values[idx])/2,2)
         TableList.append(OutDict)
 
-    with open(PathDir,"w+") as csvFile:
+    with open(PathDir,"w+",newline="") as csvFile:
         FieldNames = ["日期","開盤","收盤","最高","最低","均價"]
-        writer = csv.DictWriter(csvFile, fieldnames=FieldNames)
+        writer = csv.DictWriter(csvFile, fieldnames=FieldNames,)
 
-        writer.writeheader()
+        writer.writeheader()        
         for aDict in TableList:
             #print(aDict)
             writer.writerow(aDict)
+
+def saveDict(Date:dict,Data:list,DataName:list):
+
+    PathDir = filedialog.askdirectory()
+    #PathDir = QtWidgets.QFileDialog.getExistingDirectory(caption="選擇資料夾")
+    PathDir = PathDir + "/"+"分析結果6.csv"
+
+    TableList = list()
+    for ind in Data[0].keys():
+        date = str(Date[ind])
+        OutDict = dict()
+        OutDict["日期"] = date[0:10]
+        for idx,data in enumerate(Data):
+            try:
+                if type(data[ind]) is int:
+                    SellDate = str(Date[data[ind]]) 
+                    OutDict[DataName[idx]] = SellDate[0:10]   
+                else:
+                    OutDict[DataName[idx]] = data[ind]
+            except:
+                continue
+        TableList.append(OutDict)
+
+    DataName = ["日期"] + DataName
+    with open(PathDir,"w+",newline="") as csvFile:
+        FieldNames = DataName
+        writer = csv.DictWriter(csvFile, fieldnames=FieldNames,)
+
+        writer.writeheader()        
+        for aDict in TableList:
+            #print(aDict)
+            writer.writerow(aDict)
+
 
 def acorr(data):
 
@@ -122,20 +156,64 @@ def checkCondition(BuyPrice,NowDay,aCondition)->bool:
             else:
                 return True
 
+def convertBool(ArgIn:bool)->int:
+    if ArgIn:
+        return 1
+    else:
+        return 0
 
-def checkLogic(LogicResult,OpList)->bool:
-
-    for idx,anOp in OpList:
+def checkLogic(OriLogicResult,OriOpList:list)->bool:
+    LogicResult = OriLogicResult.copy()
+    OpList = OriOpList.copy()
+    Result = 0
+    for idx,anOp in enumerate(OpList):
         R1 = LogicResult[idx]
+        if type(R1) is list:
+            R1 = checkLogic(R1,[anOp])
+            anOp = OpList[idx+1]
+            OpList.pop(idx)
+        
+        D1 = convertBool(R1)
+
+        if idx == len(OpList):
+            #print(idx,len(LogicResult),len(OpList))
+            break
+  
         R2 = LogicResult[idx+1]
+        if type(R2) is list:
+            R2 = checkLogic(R2,[OpList[idx+1]])
+            OpList.pop(idx+1)
+
+        D2 = convertBool(R2)
+            
         match anOp:
             case "and":
-                
+                Result = R1*R2
+
             case "or":
-                
-            case _:
-                if type(anOp) is list:
-                    R = checkLogic([R1,R2],anOp)                    
+                Result = R1+R2
+        
+        #if the condition pass above test (R1 op R2 is true), then the condition
+        #for next idx needs to be set to True for comparing to next next idx.
+        if Result != 0:
+            LogicResult[idx+1] = True
+        else:
+            LogicResult[idx+1] = False  
+
+    if Result != 0:
+        return True
+    else:
+        return False
+
+def loopCheck(CheckConditions,BuyPrice,NowDay)->list:
+    CheckResult = list()
+    for aCond in CheckConditions:
+        if type(aCond) is list:
+            CheckResult.append(loopCheck(aCond,BuyPrice,NowDay))
+        else:
+            CheckResult.append(checkCondition(BuyPrice,NowDay,aCond))
+    
+    return CheckResult
 
 def getSellData(BuyDict:dict,NowData:dict,SellConditions:list,Condition:list)->list:
     # NowData: Full data of a tag ("Close","High"), which can be different from Buy price
@@ -149,29 +227,36 @@ def getSellData(BuyDict:dict,NowData:dict,SellConditions:list,Condition:list)->l
     # return a sell price from Data
     [Days,Prices] = convert2List(NowData)
 
-    SellDict = dict()
+    SellDay = dict()
+    SellPrice = dict()
+    SellReason = dict()
     for BuyDay,BuyPrice in BuyDict.items():
-        print("%d : %.2f"%(BuyDay,BuyPrice))
+        #print("%d : %.2f"%(BuyDay,BuyPrice))
         for NowDay,NowPrice in zip(Days,Prices):
             if NowDay <= BuyDay:
                 continue
-            n = 0
-            CheckResult = list()
-            for aCond in SellConditions:
-                CheckResult.append(checkCondition(BuyPrice,NowDay,aCond))
-            print(CheckResult)
+            CheckResult = loopCheck(SellConditions,BuyPrice,NowDay)
+
             if checkLogic(CheckResult,Condition):
-                SellDict[BuyDay] = (NowDay,BuyPrice,NowPrice)
+                #SellDict[BuyDay] = (NowDay,BuyPrice,NowPrice)
+                SellDay[BuyDay] = NowDay
+                SellPrice[BuyDay] = NowPrice
+                SellReason[BuyDay] = CheckResult
                 break #the sell price for this buy price has been found, so the loop for NowDay can be broken.
 
-    return SellDict      
+    return [SellDay,SellPrice,SellReason]
 
 def convert2List(DataDict):
     return [list(DataDict.keys()),list(DataDict.values())]
 
-def printDict(Data:dict):
+def printDict(Data:dict,Date=None):
     for key,value in Data.items():
-        print("%d: %.2f"%(key,value))
+        if type(value) is tuple:
+            if not Date is None:
+                print("%s: %s, %.2f"%(Date[key],Date[value[0]],(value[2]-value[1])*100/value[1]))
+        else:
+            if not Date is None:
+                print("%s: %.2f"%(Date[key],value))
 
 def getBuyData(OriData,BuyCondition:list, Conditions:list) -> dict:
     # OriData: Data to get buyprice
@@ -242,26 +327,34 @@ def getRollingAvg(data,days = 10):
     Output = dict()
     for idx in range(Days+minIdx,MaxIdx+1,1):
         #Output[idx] = result[resultLen-(idx-days+1)]
-        Output[idx] = result[idx-(days+minIdx)]
+        Output[idx] = result[idx-(days+minIdx)+1]
 
     #pyplot.imshow(M1)
     #pyplot.show()
     return Output
 
-def getFormatedData(Data:dict,tag:str,shift:int = 0) -> dict:
+def getFormatedData(Data:dict,tag:str,shift:int = 0, isDate = False) -> dict:
     # Formated Data is a dict with index as key and price as keyword
     # Data: all data including High,Low,Close,Open
     # tag can be "High","Low","Close","Open"
+
     TagData = Data[tag]
     OutputData = dict()
-    for idx,datum in enumerate(TagData.values):
-        OutputData[idx+shift] = datum
+    if isDate:
+        Date = dict()
+    for idx,date in enumerate(Data.index):
+        if isDate:
+            Date[idx] = date
+        OutputData[idx+shift] = Data[tag].values[idx]
 
     minidx = min(list(OutputData.keys()))
     for idx in range(shift):
         OutputData.pop(idx+len(TagData))
 
-    return OutputData
+    if isDate:
+        return [OutputData,Date]
+    else:
+        return OutputData
 
 def getDiffData(Data1:dict,Data2:dict)->dict:
     if len(Data1) != len(Data2):
@@ -353,9 +446,9 @@ class MainWin(QtWidgets.QWidget):
 if __name__ == "__main__":
     RollingDays = 6
 
-    Data = getTicket("^TWII","4y")
-    Data0 = getFormatedData(Data,"Close",0)
-    DataN1 = getFormatedData(Data,"Close",1)
+    Data = getTicket("^TWII","6y")
+    #saveRaw(Data)
+    [Data0,Date] = getFormatedData(Data,"Close",0,isDate = True)
     AData0 = getRollingAvg(getFormatedData(Data,"Close",0))
     ADataN1 = getRollingAvg(getFormatedData(Data,"Close",1))
     ADataN2 = getRollingAvg(getFormatedData(Data,"Close",2))
@@ -372,8 +465,9 @@ if __name__ == "__main__":
 
     BuyData = getBuyData(Data0,[BuyCondition1,BuyCondition2],["and"])
     #printDict(BuyData)
-    SellData = getSellData(BuyData,Data0,[SellCondition1,SellCondition2,SellCondition3,SellCondition4],["or","or","and"])
-    printDict(SellData)
+    [SellDay,SellPrice,SellResult] = getSellData(BuyData,Data0,[SellCondition1,SellCondition2,[SellCondition3,SellCondition4]],["or","or","and"])
+    saveDict(Date,[AData0,BuyData,SellDay,SellPrice,SellResult],["收盤價十日平均","買入價","賣出日期","賣出價","賣出原因"])
+
     """
     [Matrix,TOutcome,AToutcome,Label] = getDataMx(Data,RollingDays)
     CovMx = getCovMx(Matrix)
