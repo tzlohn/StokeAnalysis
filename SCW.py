@@ -61,7 +61,7 @@ def saveDict(Date:dict,Data:list,DataName:list):
 
     PathDir = filedialog.askdirectory()
     #PathDir = QtWidgets.QFileDialog.getExistingDirectory(caption="選擇資料夾")
-    PathDir = PathDir + "/"+"分析結果6.csv"
+    PathDir = PathDir + "/"+"分析結果240218.csv"
 
     TableList = list()
     for ind in Data[0].keys():
@@ -215,7 +215,7 @@ def loopCheck(CheckConditions,BuyPrice,NowDay)->list:
     
     return CheckResult
 
-def getSellData(BuyDict:dict,NowData:dict,SellConditions:list,Condition:list)->list:
+def getSellData(BuyDict:dict,NowData:dict,SellConditions:list,Condition:list,isInBeforeOut = False)->list:
     # NowData: Full data of a tag ("Close","High"), which can be different from Buy price
     # SellConditions is a list of dict, the key of dict is SellValue,op,and unit
     # Condition is a list including a series of "and", "or", the length of the list should be -1 of SellConditions
@@ -243,6 +243,8 @@ def getSellData(BuyDict:dict,NowData:dict,SellConditions:list,Condition:list)->l
                 SellPrice[BuyDay] = NowPrice
                 SellReason[BuyDay] = CheckResult
                 break #the sell price for this buy price has been found, so the loop for NowDay can be broken.
+    if isInBeforeOut:
+        [SellDay,SellPrice,SellReason] = inVorOut(SellDay,SellPrice,SellReason)                    
 
     return [SellDay,SellPrice,SellReason]
 
@@ -279,9 +281,10 @@ def getBuyData(OriData,BuyCondition:list, Conditions:list) -> dict:
                         result.append(idx)
         Output.append(result)
 
-    for idx,cond in enumerate(Conditions):
+    for cond in Conditions:
         result1 = Output.pop(0)
         result2 = Output.pop(0)
+
         if cond == "and":
             NewResult = list()
             for a in result2:
@@ -443,30 +446,56 @@ class MainWin(QtWidgets.QWidget):
         self.Layout.addWidget(self.Condition,4,0,2,2)
         self.setLayout(self.Layout)
 
+def inVorOut(SellDay,SellPrice,SellResult):
+    
+    DayOut = dict()
+    PriceOut = dict()
+    ResultOut = dict()
+    SellDayList = list()
+    for BuyDay in SellDay.keys():
+        if not SellDay[BuyDay] in SellDayList:
+            SellDayList.append(SellDay[BuyDay])
+            DayOut[BuyDay] = SellDay[BuyDay]
+    
+    for BuyDay in DayOut.keys():
+        PriceOut[BuyDay] = SellPrice[BuyDay]
+        ResultOut[BuyDay] = SellResult[BuyDay]
+
+    return [DayOut,PriceOut,ResultOut]
+
 if __name__ == "__main__":
-    RollingDays = 6
+    RollingDays = 14
+    isInBeforeOut = True
 
     Data = getTicket("^TWII","6y")
     #saveRaw(Data)
     [Data0,Date] = getFormatedData(Data,"Close",0,isDate = True)
-    AData0 = getRollingAvg(getFormatedData(Data,"Close",0))
-    ADataN1 = getRollingAvg(getFormatedData(Data,"Close",1))
-    ADataN2 = getRollingAvg(getFormatedData(Data,"Close",2))
+    AData0 = getRollingAvg(getFormatedData(Data,"Close",0),days = RollingDays)
+    ADataN1 = getRollingAvg(getFormatedData(Data,"Close",1),days = RollingDays)#昨天的10日平均線
+    ADataN2 = getRollingAvg(getFormatedData(Data,"Close",2),days = RollingDays)#前天的10日平均線
     [Data0,AData0,ADataN1,ADataN2] = alignData([Data0,AData0,ADataN1,ADataN2])
-    DataD1 = getDiffData(AData0,ADataN1)
-    DataD2 = getDiffData(ADataN1,ADataN2)
+    DataB1 = getDiffData(Data0,AData0)
+    DataB2 = getDiffData(AData0,ADataN1)
+    #1#DataD1 = getDiffData(AData0,ADataN1)
+    #1#DataD2 = getDiffData(ADataN1,ADataN2)
 
-    BuyCondition1 = {"Data":DataD1,"op":">","value":0,"unit":"%"}
-    BuyCondition2 = {"Data":DataD2,"op":">","value":0,"unit":"%"}
-    SellCondition1 = {"Data":Data0,"op":">","value":4,"unit":"%"}
-    SellCondition2 = {"Data":Data0,"op":"<","value":-1.5,"unit":"%"} #(Data內的數字-買入價)/買入價<1.5%
-    SellCondition3 = {"Data":DataD1,"op":"<","value":0,"unit":"$"}
-    SellCondition4 = {"Data":DataD2,"op":"<","value":0,"unit":"$"}
+    #1#BuyCondition1 = {"Data":DataD1,"op":">","value":0,"unit":"%"}
+    #1#BuyCondition2 = {"Data":DataD2,"op":">","value":0,"unit":"%"}
+    BuyCondition1 = {"Data":DataB1,"op":">","value":0,"unit":"$"}
+    BuyCondition2 = {"Data":DataB2,"op":">","value":0,"unit":"$"}
+    SellCondition1 = {"Data":DataB1,"op":"<","value":0,"unit":"$"}
+    SellCondition2 = {"Data":DataB2,"op":"<","value":0,"unit":"$"}
+    #1#SellCondition1 = {"Data":Data0,"op":">","value":4,"unit":"%"}
+    #1#SellCondition2 = {"Data":Data0,"op":"<","value":-1.5,"unit":"%"} #(Data內的數字-買入價)/買入價<1.5%
+    #1#SellCondition3 = {"Data":DataD1,"op":"<","value":0,"unit":"$"}
+    #1#SellCondition4 = {"Data":DataD2,"op":"<","value":0,"unit":"$"}
 
     BuyData = getBuyData(Data0,[BuyCondition1,BuyCondition2],["and"])
     #printDict(BuyData)
-    [SellDay,SellPrice,SellResult] = getSellData(BuyData,Data0,[SellCondition1,SellCondition2,[SellCondition3,SellCondition4]],["or","or","and"])
-    saveDict(Date,[AData0,BuyData,SellDay,SellPrice,SellResult],["收盤價十日平均","買入價","賣出日期","賣出價","賣出原因"])
+    #1#[SellDay,SellPrice,SellResult] = getSellData(BuyData,Data0,[SellCondition1,SellCondition2,[SellCondition3,SellCondition4]],["or","or","and"])
+    [SellDay,SellPrice,SellResult] = getSellData(BuyData,Data0,[SellCondition1,SellCondition2],["and"],isInBeforeOut=isInBeforeOut)
+    #1#saveDict(Date,[AData0,BuyData,SellDay,SellPrice,SellResult],["收盤價十日平均","買入價","賣出日期","賣出價","賣出原因"])
+    saveDict(Date,[Data0,AData0,BuyData,SellDay,SellPrice,SellResult],["收盤價","收盤價十日平均","買入價","賣出日期","賣出價","賣出原因"])
 
     """
     [Matrix,TOutcome,AToutcome,Label] = getDataMx(Data,RollingDays)
