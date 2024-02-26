@@ -125,10 +125,23 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
         Axis = self.PlotWidget.getAxis("bottom")    
         Axis.setTicks([[(value,name) for value,name in zip(list(IndexData),x_axis)]])
     
-    def plot(self,data,x_axis,QColor):
+    def plot(self,data,x_axis,QColor,isRight = False):
         if not hasattr(self,"ThisPlot"):
-            self.ThisPlot = list()   
-        self.ThisPlot.append(self.PlotWidget.plotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}))
+            self.ThisPlot = list()
+        if not isRight:   
+            self.ThisPlot.append(self.PlotWidget.plotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}))
+        else:
+            RightAxis = pg.AxisItem("right")
+            #ThisPlotItem = pg.PlotItem(axisItems={'right': RightAxis})
+            ThisPlotItem = pg.PlotItem()
+            self.PlotWidget.plotItem.layout.addItem(RightAxis,2,3)
+            self.PlotWidget.plotItem.scene().addItem(ThisPlotItem.vb)
+            RightAxis.linkToView(ThisPlotItem.vb)
+            ThisPlotItem.vb.setXLink(self.PlotWidget.plotItem)
+            ThisPlotItem.vb.setGeometry(self.PlotWidget.plotItem.sceneBoundingRect())
+            #ThisPlotItem = self.PlotWidget.plotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine},axisItems={'right': RightAxis})
+            ThisPlotItem.vb.addItem(pg.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}))
+            self.ThisPlot.append(ThisPlotItem)            
 
     def plotZone(self,Pos,range,color,LineThick):
         if range == 0:
