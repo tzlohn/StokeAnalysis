@@ -272,7 +272,6 @@ class MetricGroup(QtWidgets.QGroupBox):
                     RawData = self.MainWin.DataSource.PeriodData["Close"]
                     self.calculateMetric(type = "DayAvg",Data = RawData)
                     Data = RawData[9:]-self.RollingAvg[0]
-                    #self.CrossHairPlot.PlotWidget.showAxis("right")
                     self.CrossHairPlot.plot(Data,self.RollingAvg[1],QColor,isRight = True)
                 case _:
                     self.RawData = self.MainWin.DataSource.PeriodData[self.OptionDict[Option]]

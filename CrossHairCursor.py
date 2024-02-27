@@ -131,17 +131,29 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
         if not isRight:   
             self.ThisPlot.append(self.PlotWidget.plotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}))
         else:
-            RightAxis = pg.AxisItem("right")
-            #ThisPlotItem = pg.PlotItem(axisItems={'right': RightAxis})
-            ThisPlotItem = pg.PlotItem()
+            RightAxis = pg.AxisItem("right")      
+            ThisPlotItem = pg.PlotItem(axisItems={'right': RightAxis})
+            #ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine})
+            """Setting up the ViewBox for the new plot with right axis"""
+            ThisVb = pg.ViewBox()
             self.PlotWidget.plotItem.layout.addItem(RightAxis,2,3)
-            self.PlotWidget.plotItem.scene().addItem(ThisPlotItem.vb)
-            RightAxis.linkToView(ThisPlotItem.vb)
-            ThisPlotItem.vb.setXLink(self.PlotWidget.plotItem)
-            ThisPlotItem.vb.setGeometry(self.PlotWidget.plotItem.sceneBoundingRect())
+            self.PlotWidget.plotItem.scene().addItem(ThisVb)
+            RightAxis.linkToView(ThisVb)
+            ThisVb.setXLink(self.PlotWidget.plotItem)
+            ThisVb.setGeometry(self.PlotWidget.plotItem.sceneBoundingRect())
+            ThisVb.linkedViewChanged(self.PlotWidget.plotItem.vb, ThisVb.XAxis)
             #ThisPlotItem = self.PlotWidget.plotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine},axisItems={'right': RightAxis})
-            ThisPlotItem.vb.addItem(pg.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}))
-            self.ThisPlot.append(ThisPlotItem)            
+            #ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine})
+            """Put the plot in the ViewBox"""
+            ThisVb.addItem(ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}))
+            #self.ThisPlot.append(ThisPlotItem)
+            print(self.PlotWidget.plotItem.getViewBox())
+
+    def updateView(self):
+        self.PlotWidget.getPlotItem()
+        
+        #ThisVb.setGeometry(self.PlotWidget.plotItem.sceneBoundingRect())
+        #ThisVb.linkedViewChanged(self.PlotWidget.plotItem.vb, ThisVb.XAxis)            
 
     def plotZone(self,Pos,range,color,LineThick):
         if range == 0:
