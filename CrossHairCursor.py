@@ -133,22 +133,19 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
         if not isRight:   
             self.ThisPlot.append(self.PlotWidget.plotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}))
         else:
+            # Define right axis and its plotitem
             RightAxis = pg.AxisItem("right")      
             ThisPlotItem = pg.PlotItem(axisItems={'right': RightAxis})
             ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine})
             ThisPlotItem.hideAxis("left")
-            """Setting up the ViewBox for the new plot with right axis"""
-            #ThisVb = pg.ViewBox()
+            # relates ThisPlotItem and RightAxis to the PlotWidget
             self.PlotWidget.plotItem.layout.addItem(RightAxis,2,3)
+            ## Actually it needs to add in to the scene of the plotItem (one layer above the plotItem), 
+            ## so ThisPlotItem will have the same hierachy as the one in PlotWidget
             self.PlotWidget.plotItem.scene().addItem(ThisPlotItem)
+            ## Of course the RightAxis needs to relate to ThisPlotItem here
             RightAxis.linkToView(ThisPlotItem.vb)
             ThisPlotItem.vb.setXLink(self.PlotWidget.plotItem)
-            ThisPlotItem.setGeometry(self.PlotWidget.plotItem.sceneBoundingRect())
-            ThisPlotItem.vb.linkedViewChanged(self.PlotWidget.plotItem.vb, ThisPlotItem.vb.XAxis)
-            #ThisPlotItem = self.PlotWidget.plotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine},axisItems={'right': RightAxis})
-            #ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine})
-            """Put the plot in the ViewBox"""
-            #ThisVb.addItem(ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}))
             self.RightAxisPlotItems.append(ThisPlotItem)
             self.PlotWidget.plotItem.vb.sigResized.connect(self.updateView)
 
