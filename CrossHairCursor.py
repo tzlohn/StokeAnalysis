@@ -75,6 +75,8 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
 
         self.crosshair_update = pg.SignalProxy(self.PlotWidget.scene().sigMouseMoved, rateLimit=60, slot=self.update_crosshair)
 
+        self.RightAxisPlotItems = list()
+
     def update_crosshair(self, event):
         """Paint crosshair on mouse"""
 
@@ -133,24 +135,27 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
         else:
             RightAxis = pg.AxisItem("right")      
             ThisPlotItem = pg.PlotItem(axisItems={'right': RightAxis})
-            #ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine})
+            ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine})
+            ThisPlotItem.hideAxis("left")
             """Setting up the ViewBox for the new plot with right axis"""
-            ThisVb = pg.ViewBox()
+            #ThisVb = pg.ViewBox()
             self.PlotWidget.plotItem.layout.addItem(RightAxis,2,3)
-            self.PlotWidget.plotItem.scene().addItem(ThisVb)
-            RightAxis.linkToView(ThisVb)
-            ThisVb.setXLink(self.PlotWidget.plotItem)
-            ThisVb.setGeometry(self.PlotWidget.plotItem.sceneBoundingRect())
-            ThisVb.linkedViewChanged(self.PlotWidget.plotItem.vb, ThisVb.XAxis)
+            self.PlotWidget.plotItem.scene().addItem(ThisPlotItem)
+            RightAxis.linkToView(ThisPlotItem.vb)
+            ThisPlotItem.vb.setXLink(self.PlotWidget.plotItem)
+            ThisPlotItem.setGeometry(self.PlotWidget.plotItem.sceneBoundingRect())
+            ThisPlotItem.vb.linkedViewChanged(self.PlotWidget.plotItem.vb, ThisPlotItem.vb.XAxis)
             #ThisPlotItem = self.PlotWidget.plotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine},axisItems={'right': RightAxis})
             #ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine})
             """Put the plot in the ViewBox"""
-            ThisVb.addItem(ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}))
-            #self.ThisPlot.append(ThisPlotItem)
-            print(self.PlotWidget.plotItem.getViewBox())
+            #ThisVb.addItem(ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}))
+            self.RightAxisPlotItems.append(ThisPlotItem)
+            self.PlotWidget.plotItem.vb.sigResized.connect(self.updateView)
 
     def updateView(self):
-        self.PlotWidget.getPlotItem()
+        for pItem in self.RightAxisPlotItems:
+            pItem.setGeometry(self.PlotWidget.plotItem.sceneBoundingRect())
+            pItem.vb.linkedViewChanged(self.PlotWidget.plotItem.vb, pItem.vb.XAxis)
         
         #ThisVb.setGeometry(self.PlotWidget.plotItem.sceneBoundingRect())
         #ThisVb.linkedViewChanged(self.PlotWidget.plotItem.vb, ThisVb.XAxis)            
