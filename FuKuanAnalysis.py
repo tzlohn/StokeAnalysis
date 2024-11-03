@@ -18,7 +18,7 @@ class DataSourceGroup(QtWidgets.QGroupBox):
 
         self.TickerLabel = QtWidgets.QLabel(parent = self,text = "代碼:")
         self.TickerBox = QtWidgets.QComboBox(self)
-        self.TickerBox.addItems(["0050.TW","2330.TW","^TWII","EURUSD=X","USDTWD=X","EURTWD=X"])
+        self.TickerBox.addItems(["0050.TW","2330.TW","2882.TW","^TWII","EURUSD=X","USDTWD=X","EURTWD=X","^GSPC"])
         self.TickerBox.currentIndexChanged.connect(self.getTicket)
         self.PeriodLabel = QtWidgets.QLabel(parent = self,text = "載入資料期間(從現在回朔):")
         self.DigitBox = QtWidgets.QSpinBox(self)
@@ -271,7 +271,8 @@ class MetricGroup(QtWidgets.QGroupBox):
                 case 5:
                     RawData = self.MainWin.DataSource.PeriodData["Close"]
                     self.calculateMetric(type = "DayAvg",Data = RawData)
-                    Data = RawData[9:]-self.RollingAvg[0]
+                    AvgDays = self.AvgDaysBox.value()-1
+                    Data = RawData[AvgDays:]-self.RollingAvg[0]
                     self.CrossHairPlot.plot(Data,self.RollingAvg[1],QColor,isRight = True)
                 case _:
                     self.RawData = self.MainWin.DataSource.PeriodData[self.OptionDict[Option]]
@@ -499,24 +500,32 @@ class ConditionGroup(QtWidgets.QGroupBox):
         PathDir = PathDir + "/"+"報表.csv"
         
         #OpenData = self.MainWin.DataSource.PeriodData["Open"]
-        #CloseData = self.MainWin.DataSource.PeriodData["Close"]
+        CloseData = self.MainWin.DataSource.PeriodData["Close"]
         HighData = self.MainWin.DataSource.PeriodData["High"]
         #LowData = self.MainWin.DataSource.PeriodData["Low"]
         Date = self.MainWin.Metric.getDate(HighData)
         BuyDict = self.dictPrice(self.BuyPrice)
         SellDict = self.dictPrice(self.SellPrice)
         TableList = list()
-        
+        print(BuyDict)
+        print(SellDict)
         for d in BuyDict:
             OutDict = dict()
-            OutDict["日期"] = Date[d]
-            OutDict["買入"] = round(BuyDict[d],2)
-            OutDict["賣出"] = round(SellDict[d],2)
-            OutDict["差價"] = round(SellDict[d]-BuyDict[d],2)
+            OutDict["買入日期"] = Date[d]
+            OutDict["買入價格"] = round(BuyDict[d],2)
+            SellDay = self.matchTheTrade(d,list(SellDict.keys()))
+            if not SellDay:
+                OutDict["賣出日期"] = -1
+                OutDict["賣出價格"] = -1
+                OutDict["差價"] = -1
+            else:
+                OutDict["賣出日期"] = Date[SellDay]
+                OutDict["賣出價格"] = round(CloseData[SellDay],2)
+                OutDict["差價"] = round(CloseData[SellDay]-BuyDict[d],2)
             TableList.append(OutDict)
 
         with open(PathDir,"w+") as csvFile:
-            FieldNames = ["日期","買入","賣出","差價"]
+            FieldNames = ["買入日期","買入價格","賣出日期","賣出價格","差價"]
             writer = csv.DictWriter(csvFile, fieldnames=FieldNames)
 
             writer.writeheader()
@@ -532,6 +541,14 @@ class ConditionGroup(QtWidgets.QGroupBox):
         #pyplot.plot(np.asarray(idxList),np.asarray(DiffList),"ro--")
         #pyplot.plot(np.asarray(idxList),np.zeros(len(idxList)))
         #pyplot.show()
+    
+    def matchTheTrade(self,BuyDay,SellDate):
+        for idx,aD in enumerate(SellDate):
+            if idx == len(SellDate)-1:
+                return False
+            if (aD-BuyDay)*(SellDate[idx+1]-BuyDay)<0:
+                return SellDate[idx+1]
+        return False
     
     def dictPrice(self,PriceList):
         PriceDict = dict()
@@ -607,11 +624,11 @@ class ConditionGroup(QtWidgets.QGroupBox):
             if Condition["AndOr"].isEnabled():
                 AndOrList.append(Condition["AndOr"].currentText())
 
-            if Status == "Out":
-                points = list(set(ConditionPoints[0]).intersection(ThisFoundPoints))
-                FoundPoints.append(points)
-            else:
-                FoundPoints.append(ThisFoundPoints)
+            #if Status == "Out":
+            #    points = list(set(ConditionPoints[0]).intersection(ThisFoundPoints))
+            #    FoundPoints.append(points)
+            #else:
+            FoundPoints.append(ThisFoundPoints)
 
             PriceList.append(self.getPrice(FoundPoints,{"Datum1":OriData1,"Offset1":Offset1,"Datum2":OriData2,"Offset2":Offset2,"In/Out":Status}))
             

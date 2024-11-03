@@ -136,7 +136,7 @@ class CrosshairPlotWidget(QtWidgets.QWidget):
             # Define right axis and its plotitem
             RightAxis = pg.AxisItem("right")      
             ThisPlotItem = pg.PlotItem(axisItems={'right': RightAxis})
-            ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}, symbolpen = QColor,symbol = "o", symbolSize = 6)
+            ThisPlotItem.plot(x_axis,data,pen = {"color" : QColor, "width" : 1,"style": QtCore.Qt.DashLine}, brush = QColor, symbolpen ="" ,symbol = "o", symbolSize = 6)
             ThisPlotItem.hideAxis("left")
             # relates ThisPlotItem and RightAxis to the PlotWidget
             self.PlotWidget.plotItem.layout.addItem(RightAxis,2,3)

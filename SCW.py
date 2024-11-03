@@ -559,3 +559,7 @@ if __name__ == "__main__":
     #Misuzu Tachibana
     #Yanagi akira/miwoko/259LUXU-079
     #翼みさき
+    #雪奈あいり
+    #Minamo SODSTAR
+    #渡辺まお
+    # Clair Castel/ Lucy Heart
